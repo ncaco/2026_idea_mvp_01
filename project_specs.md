@@ -1,39 +1,44 @@
 # 프로젝트 명세 및 작업 추적
 
 ## 프로젝트 정보
-- **프로젝트명**: AI 가계부 - Windows 애플리케이션
+- **프로젝트명**: AI 가계부 - 웹 애플리케이션
 - **시작일**: 2026-01
-- **목표**: AI 기능이 포함된 윈도우 데스크톱 가계부 애플리케이션 개발
+- **목표**: AI 기능이 포함된 웹 기반 가계부 애플리케이션 개발
 
 ## 기술 스택
-- **프론트엔드**: Electron + React + TypeScript + Tailwind CSS
-- **백엔드**: Spring Boot + SQLite + JPA
-- **AI 서비스**: Python FastAPI + OpenAI API / Local LLM
+- **프론트엔드**: Next.js + Electron + TypeScript + Tailwind CSS
+- **백엔드 API**: FastAPI + SQLite + SQLAlchemy (마이크로서비스)
+- **AI 서비스**: FastAPI + OpenAI API / Local LLM (마이크로서비스)
 
 ## 작업 추적
 
 ### Phase 1: 기본 기능 (MVP) - 진행 중
 
 #### 1.1 프로젝트 구조 설정
-- [ ] 프론트엔드 프로젝트 초기화 (Electron + React + TypeScript)
-- [ ] 백엔드 프로젝트 초기화 (Spring Boot + Gradle)
-- [ ] AI 서비스 프로젝트 초기화 (Python FastAPI)
+- [ ] 프론트엔드 프로젝트 초기화 (Next.js + Electron + TypeScript)
+- [ ] Electron 메인 프로세스 설정
+- [ ] Electron Preload 스크립트 설정
+- [ ] 백엔드 API 프로젝트 초기화 (FastAPI)
+- [ ] AI 서비스 프로젝트 초기화 (FastAPI)
 - [ ] 프로젝트 루트 구조 설정
 - [ ] Git 저장소 초기화 및 .gitignore 설정
+- [ ] CORS 설정 (Next.js ↔ FastAPI Backend ↔ FastAPI AI)
 
 #### 1.2 데이터베이스 스키마 설계
-- [x] 데이터베이스 스키마 설계 완료 (db_structure.md)
+- [ ] 데이터베이스 스키마 설계 완료 (db_structure.md)
 - [ ] SQLite 데이터베이스 파일 생성
-- [ ] JPA Entity 클래스 작성
-- [ ] Repository 인터페이스 작성
+- [ ] SQLAlchemy 모델 클래스 작성
+- [ ] Pydantic 스키마 작성
+- [ ] 데이터베이스 초기화 및 마이그레이션
 - [ ] 초기 데이터 (기본 카테고리) 삽입
 
 #### 1.3 기본 CRUD 기능
-- [ ] Transaction Entity 및 Repository
+- [ ] Transaction SQLAlchemy 모델 작성
+- [ ] Transaction Pydantic 스키마 작성
 - [ ] Transaction Service 구현
-- [ ] Transaction Controller (REST API) 구현
-- [ ] Category Entity 및 Repository
-- [ ] Category Service 및 Controller 구현
+- [ ] Transaction Router (REST API) 구현
+- [ ] Category SQLAlchemy 모델 작성
+- [ ] Category Service 및 Router 구현
 - [ ] 프론트엔드 거래 내역 등록 폼
 - [ ] 프론트엔드 거래 내역 목록 조회
 - [ ] 프론트엔드 거래 내역 수정/삭제
@@ -55,10 +60,11 @@
 ### Phase 2: AI 기능 추가
 
 #### 2.1 AI 서비스 구축
-- [ ] Python FastAPI 프로젝트 설정
+- [ ] FastAPI AI 서비스 프로젝트 설정
 - [ ] OpenAI API 연동 또는 Local LLM 설정
 - [ ] AI 서비스 엔드포인트 구현
-- [ ] 백엔드에서 AI 서비스 호출 로직
+- [ ] 백엔드 API에서 AI 서비스 HTTP 클라이언트 구현
+- [ ] 서비스 간 통신 테스트
 
 #### 2.2 자동 카테고리 분류
 - [ ] 거래 설명 분석 API
@@ -115,16 +121,21 @@
 - [ ] 애니메이션 및 전환 효과
 - [ ] 접근성 개선
 
-#### 4.3 윈도우 설치 파일 패키징
+#### 4.3 Electron 앱 빌드 및 배포
 - [ ] Electron Builder 설정
-- [ ] 아이콘 및 메타데이터 설정
-- [ ] 설치 파일 빌드 테스트
+- [ ] 윈도우 아이콘 및 메타데이터 설정
+- [ ] Next.js 프로덕션 빌드 통합
+- [ ] 윈도우 설치 파일 빌드 테스트 (.exe)
+- [ ] 자동 업데이트 기능 (electron-updater)
 - [ ] 코드 서명 설정 (선택사항)
 
-#### 4.4 자동 업데이트 기능
-- [ ] 업데이트 서버 설정
-- [ ] 자동 업데이트 체크 로직
-- [ ] 업데이트 다운로드 및 설치
+#### 4.4 웹 배포 (선택사항)
+- [ ] 환경 변수 설정 (.env 파일)
+- [ ] 프로덕션 빌드 테스트
+- [ ] 프론트엔드 웹 배포 (Vercel, Netlify 등)
+- [ ] 백엔드 배포 (AWS, Azure, Heroku 등)
+- [ ] AI 서비스 배포 (AWS Lambda, Docker 등)
+- [ ] 도메인 및 SSL 설정
 
 ## 우선순위
 
@@ -145,10 +156,13 @@
 
 ## 다음 작업
 
-1. 프론트엔드 프로젝트 초기화
-2. 백엔드 프로젝트 초기화
-3. SQLite 데이터베이스 설정
-4. 기본 Entity 클래스 작성
+1. Next.js 프로젝트 초기화
+2. FastAPI 백엔드 API 프로젝트 초기화
+3. FastAPI AI 서비스 프로젝트 초기화
+4. SQLite 데이터베이스 설정
+5. SQLAlchemy 모델 클래스 작성
+6. CORS 설정
+7. 서비스 간 통신 설정
 
 ## 참고사항
 
