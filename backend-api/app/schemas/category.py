@@ -1,0 +1,31 @@
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+
+class CategoryBase(BaseModel):
+    name: str
+    type: str  # 'income' or 'expense'
+    color: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class CategoryCreate(CategoryBase):
+    user_id: int
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class Category(CategoryBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
