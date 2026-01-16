@@ -12,10 +12,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: '/', label: '대시보드' },
     { href: '/transactions', label: '거래 내역' },
     { href: '/categories', label: '카테고리' },
+    { href: '/chat', label: '채팅' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-hidden">
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="w-full px-3 sm:px-4 lg:px-6">
           <div className="flex justify-between h-12 items-center">
@@ -88,7 +89,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </nav>
-      <main className="w-full px-3 sm:px-4 lg:px-6 py-4 max-w-[1920px] mx-auto">
+      <main className={`w-full ${pathname === '/chat' ? 'p-0' : 'px-3 sm:px-4 lg:px-6 py-4'} max-w-[1920px] mx-auto ${pathname === '/chat' ? 'h-[calc(100vh-3rem)]' : ''}`}>
         {children}
       </main>
     </div>

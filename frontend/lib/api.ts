@@ -109,11 +109,15 @@ export const transactionAPI = {
 
   getById: (id: number) => fetchAPI<Transaction>(`/api/transactions/${id}`),
 
-  create: (data: TransactionCreate) =>
-    fetchAPI<Transaction>('/api/transactions', {
+  create: (data: TransactionCreate) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/5dd89038-e302-4767-8ab6-a4bc08c49221',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:create',message:'거래 생성 요청',data:data,timestamp:Date.now(),sessionId:'debug-session'})}).catch(()=>{});
+    // #endregion
+    return fetchAPI<Transaction>('/api/transactions', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
   update: (id: number, data: TransactionUpdate) =>
     fetchAPI<Transaction>(`/api/transactions/${id}`, {

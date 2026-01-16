@@ -13,7 +13,8 @@ class TransactionBase(BaseModel):
 
 
 class TransactionCreate(TransactionBase):
-    user_id: int
+    # user_id는 서버에서 자동 설정되므로 클라이언트에서 보낼 필요 없음
+    pass
 
 
 class TransactionUpdate(BaseModel):

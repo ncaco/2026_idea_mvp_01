@@ -61,7 +61,10 @@ export const CategoryList: React.FC = () => {
                 new Date(t.transaction_date).getMonth() + 1 === currentMonth
             );
             
-            const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+            const totalAmount = filteredTransactions.reduce((sum, t) => {
+              const amount = typeof t.amount === 'number' ? t.amount : parseFloat(String(t.amount)) || 0;
+              return sum + amount;
+            }, 0);
             const transactionCount = filteredTransactions.length;
             
             return {
@@ -218,7 +221,7 @@ export const CategoryList: React.FC = () => {
                       </div>
                       <div className="text-xs text-gray-600">
                         총액: <span className="font-medium text-green-600">
-                          ₩{(category.totalAmount || 0).toLocaleString()}
+                          ₩{Number(category.totalAmount || 0).toLocaleString('ko-KR')}
                         </span>
                       </div>
                     </div>
@@ -273,7 +276,7 @@ export const CategoryList: React.FC = () => {
                       </div>
                       <div className="text-xs text-gray-600">
                         총액: <span className="font-medium text-red-600">
-                          ₩{(category.totalAmount || 0).toLocaleString()}
+                          ₩{Number(category.totalAmount || 0).toLocaleString('ko-KR')}
                         </span>
                       </div>
                     </div>

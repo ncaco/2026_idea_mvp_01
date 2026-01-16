@@ -12,6 +12,29 @@ interface TransactionFormProps {
   onCancel: () => void;
 }
 
+// 숫자 포맷팅 유틸리티 함수
+const formatNumber = (value: string): string => {
+  // 숫자와 소수점만 추출
+  const numericValue = value.replace(/[^\d.]/g, '');
+  if (!numericValue) return '';
+  
+  // 소수점이 여러 개인 경우 첫 번째만 유지
+  const parts = numericValue.split('.');
+  const integerPart = parts[0] || '';
+  const decimalPart = parts.length > 1 ? '.' + parts.slice(1).join('') : '';
+  
+  // 정수 부분에 콤마 추가
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  return formattedInteger + decimalPart;
+};
+
+// 콤마 제거 후 숫자로 변환
+const parseNumber = (value: string): number => {
+  const numericValue = value.replace(/,/g, '');
+  return parseFloat(numericValue) || 0;
+};
+
 export const TransactionForm: React.FC<TransactionFormProps> = ({
   transaction,
   onSubmit,
@@ -19,7 +42,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 }) => {
   const [type, setType] = useState<'income' | 'expense'>(transaction?.type || 'expense');
   const [categoryId, setCategoryId] = useState<number | undefined>(transaction?.category_id);
-  const [amount, setAmount] = useState<string>(transaction?.amount.toString() || '');
+  const [amount, setAmount] = useState<string>(
+    transaction?.amount ? formatNumber(transaction.amount.toString()) : ''
+  );
   const [description, setDescription] = useState<string>(transaction?.description || '');
   const [transactionDate, setTransactionDate] = useState<string>(
     transaction?.transaction_date || new Date().toISOString().split('T')[0]
@@ -38,7 +63,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
+    const numericAmount = parseNumber(amount);
+    if (!amount || numericAmount <= 0) {
       setError('금액을 입력해주세요.');
       setLoading(false);
       return;
@@ -48,7 +74,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       const data: TransactionCreate | TransactionUpdate = {
         category_id: categoryId,
         type,
-        amount: parseFloat(amount),
+        amount: numericAmount,
         description: description || undefined,
         transaction_date: transactionDate,
       };
@@ -104,11 +130,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
       <Input
         label="금액"
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
+        inputMode="decimal"
         value={amount}
-        onChange={(e) => setAmount(e.target.value)}
+        onChange={(e) => {
+          const formatted = formatNumber(e.target.value);
+          setAmount(formatted);
+        }}
+        placeholder="0"
         required
         error={error && !amount ? error : undefined}
       />

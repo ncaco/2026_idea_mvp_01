@@ -38,9 +38,11 @@ def get_transactions(
     return query.order_by(Transaction.transaction_date.desc()).offset(skip).limit(limit).all()
 
 
-def create_transaction(db: Session, transaction: TransactionCreate) -> Transaction:
+def create_transaction(db: Session, transaction: TransactionCreate, user_id: int) -> Transaction:
     """거래 내역 생성"""
-    db_transaction = Transaction(**transaction.model_dump())
+    transaction_data = transaction.model_dump()
+    transaction_data['user_id'] = user_id
+    db_transaction = Transaction(**transaction_data)
     db.add(db_transaction)
     db.commit()
     db.refresh(db_transaction)

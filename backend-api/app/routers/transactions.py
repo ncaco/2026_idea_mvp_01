@@ -18,8 +18,7 @@ def create_transaction(
     db: Session = Depends(get_db)
 ):
     """거래 내역 생성"""
-    transaction.user_id = DEFAULT_USER_ID
-    return transaction_service.create_transaction(db, transaction)
+    return transaction_service.create_transaction(db, transaction, DEFAULT_USER_ID)
 
 
 @router.get("", response_model=List[Transaction])
