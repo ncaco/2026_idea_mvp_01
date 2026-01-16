@@ -22,6 +22,7 @@ AI 기능이 포함된 윈도우 데스크톱 가계부 애플리케이션입니
 - 💡 **예산 추천**: 과거 데이터를 기반으로 적정 예산 제안
 - 🔮 **지출 예측**: 다음 달 예상 지출액 예측
 - 💬 **자연어 입력**: "오늘 커피 5000원" 같은 자연어로 거래 입력
+- 🔍 **엘라스틱서치 통합**: 하이브리드 검색(키워드 + 의미 기반)으로 정확한 거래 내역 검색
 
 ## 기술 스택
 
@@ -172,6 +173,7 @@ AI 기능이 포함된 윈도우 데스크톱 가계부 애플리케이션입니
 - Node.js 18+
 - Python 3.10+
 - SQLite (Python에서 자동 지원, 별도 설치 불필요)
+- Docker (엘라스틱서치 실행용, 선택사항)
 
 ### 설치 및 실행
 
@@ -201,16 +203,53 @@ npm run build:electron  # Electron 윈도우 앱 빌드 (.exe 파일 생성)
 - `frontend/dist/`: Electron 앱 실행 파일
 - `frontend/dist/*.exe`: 윈도우 설치 파일
 
-#### 2. 백엔드 API (FastAPI)
+#### 2. 엘라스틱서치 (Docker)
+```powershell
+# 엘라스틱서치 시작
+docker-compose up -d elasticsearch
+
+# 인덱스 초기화
+cd ./elasticsearch
+.\run.ps1 init
+
+# 또는 수동으로
+python elasticsearch/init-index.py
+```
+
+**엘라스틱서치 관리:**
+```powershell
+# 시작
+.\elasticsearch\run.ps1 start
+
+# 중지
+.\elasticsearch\run.ps1 stop
+
+# 상태 확인
+.\elasticsearch\run.ps1 status
+
+# 재시작 및 인덱스 초기화
+.\elasticsearch\run.ps1 init
+```
+
+#### 3. 백엔드 API (FastAPI)
 ```powershell
 cd ./backend-api
 pip install -r requirements.txt
+
+# 환경 변수 설정 (선택사항)
+# .env 파일 생성 또는 환경 변수 설정:
+# ELASTICSEARCH_HOST=http://localhost:9200
+# EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
+
 python -m uvicorn app.main:app --reload --port 8000
 # 또는
 uvicorn app.main:app --reload --port 8000
+
+# 기존 데이터 일괄 인덱싱 (최초 1회)
+python app/scripts/index_existing_data.py
 ```
 
-#### 3. AI 서비스 (FastAPI)
+#### 4. AI 서비스 (FastAPI)
 ```powershell
 cd ./ai-service
 pip install -r requirements.txt
@@ -220,19 +259,24 @@ uvicorn app.main:app --reload --port 8001
 ```
 
 **참고**: 
+- 엘라스틱서치: `http://localhost:9200`
+- Kibana (개발용): `http://localhost:5601`
 - FastAPI 백엔드 API: `http://localhost:8000`
 - FastAPI AI 서비스: `http://localhost:8001`
 - Next.js 프론트엔드: `http://localhost:3000`
 
 **동시 실행 (PowerShell에서 별도 터미널)**:
 ```powershell
-# 터미널 1: 백엔드 API
+# 터미널 1: 엘라스틱서치 (최초 1회)
+docker-compose up -d elasticsearch
+
+# 터미널 2: 백엔드 API
 cd ./backend-api; uvicorn app.main:app --reload --port 8000
 
-# 터미널 2: AI 서비스
+# 터미널 3: AI 서비스
 cd ./ai-service; uvicorn app.main:app --reload --port 8001
 
-# 터미널 3: 프론트엔드
+# 터미널 4: 프론트엔드
 cd ./frontend; npm run dev
 ```
 
@@ -268,6 +312,13 @@ cd ./frontend; npm run dev
 ### 5. 자연어 입력
 - "오늘 점심 15000원", "월급 300만원" 같은 자연어 입력 처리
 - 날짜, 금액, 카테고리 자동 추출
+
+### 6. 엘라스틱서치 하이브리드 검색
+- **키워드 검색 (BM25)**: 정확한 용어 매칭
+- **의미 기반 검색 (kNN)**: 유사한 의미의 거래 내역 검색
+  - 예: "남편 월급" 검색 시 "배우자 급여"도 매칭
+- **하이브리드 검색**: 두 검색 결과를 결합하여 더 정확한 결과 제공
+- **자동 인덱싱**: 거래 내역 생성/수정/삭제 시 자동으로 엘라스틱서치에 동기화
 
 ## 개발 로드맵
 

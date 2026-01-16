@@ -195,6 +195,17 @@ if "messages" not in st.session_state:
     saved_messages = load_messages()
     st.session_state.messages = saved_messages if saved_messages else []
 
+# 인증 토큰 설정 (쿼리 파라미터에서 가져오기)
+if "auth_token" not in st.session_state:
+    query_params = st.query_params
+    if "token" in query_params:
+        st.session_state.auth_token = query_params["token"]
+        # 환경 변수에도 설정 (chat_history.py에서 사용)
+        import os
+        os.environ["AUTH_TOKEN"] = query_params["token"]
+    else:
+        st.session_state.auth_token = None
+
 if "lmstudio_url" not in st.session_state:
     st.session_state.lmstudio_url = "http://127.0.0.1:1234"
 

@@ -2,12 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
+import { getToken } from '@/lib/api';
 
 export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [streamlitUrl, setStreamlitUrl] = useState('http://localhost:8501');
 
   useEffect(() => {
+    // JWT 토큰 가져오기 및 Streamlit URL 구성
+    const token = getToken();
+    if (token) {
+      const url = new URL('http://localhost:8501');
+      url.searchParams.set('token', token);
+      setStreamlitUrl(url.toString());
+    }
+
     // Streamlit 서버 연결 확인
     const checkStreamlit = async () => {
       try {
@@ -76,7 +86,7 @@ export default function ChatPage() {
         )}
         <div className="w-full h-full overflow-hidden bg-white flex flex-col">
           <iframe
-            src="http://localhost:8501"
+            src={streamlitUrl}
             className="w-full h-full border-0"
             allow="clipboard-read; clipboard-write"
             title="AI 가계부 채팅"

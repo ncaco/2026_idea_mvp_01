@@ -2,8 +2,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import List, Optional
 from datetime import date
-from app.models import Transaction
+from app.models import Transaction, Category
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
+from app.services.elasticsearch_service import (
+    index_transaction,
+    update_transaction_index,
+    delete_transaction_index
+)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_transaction(db: Session, transaction_id: int, user_id: int) -> Optional[Transaction]:
@@ -46,6 +54,15 @@ def create_transaction(db: Session, transaction: TransactionCreate, user_id: int
     db.add(db_transaction)
     db.commit()
     db.refresh(db_transaction)
+    
+    # 엘라스틱서치 인덱싱 (비동기적으로 처리, 실패해도 DB 트랜잭션은 유지)
+    try:
+        category = db.query(Category).filter(Category.id == db_transaction.category_id).first()
+        index_transaction(db, db_transaction, category)
+    except Exception as e:
+        logger.error(f"엘라스틱서치 인덱싱 실패 (transaction_id={db_transaction.id}): {e}")
+        # 인덱싱 실패해도 DB 트랜잭션은 성공으로 처리
+    
     return db_transaction
 
 
@@ -66,6 +83,14 @@ def update_transaction(
     
     db.commit()
     db.refresh(db_transaction)
+    
+    # 엘라스틱서치 인덱스 업데이트
+    try:
+        category = db.query(Category).filter(Category.id == db_transaction.category_id).first()
+        update_transaction_index(db, db_transaction, category)
+    except Exception as e:
+        logger.error(f"엘라스틱서치 인덱스 업데이트 실패 (transaction_id={transaction_id}): {e}")
+    
     return db_transaction
 
 
@@ -77,4 +102,11 @@ def delete_transaction(db: Session, transaction_id: int, user_id: int) -> bool:
     
     db.delete(db_transaction)
     db.commit()
+    
+    # 엘라스틱서치 인덱스에서 삭제
+    try:
+        delete_transaction_index(transaction_id)
+    except Exception as e:
+        logger.error(f"엘라스틱서치 인덱스 삭제 실패 (transaction_id={transaction_id}): {e}")
+    
     return True

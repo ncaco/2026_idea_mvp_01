@@ -126,6 +126,89 @@ def get_categories() -> List[Dict]:
         print(f"카테고리 조회 실패: {e}")
         return []
 
+
+def search_transactions(
+    query: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    transaction_type: Optional[str] = None,
+    category_id: Optional[int] = None,
+    size: int = 20
+) -> List[Dict]:
+    """
+    엘라스틱서치를 사용한 하이브리드 검색으로 거래 내역을 검색합니다.
+    
+    Args:
+        query: 검색 키워드 (자연어 질문)
+        start_date: 시작 날짜 (YYYY-MM-DD)
+        end_date: 종료 날짜 (YYYY-MM-DD)
+        transaction_type: 거래 타입 ("income" or "expense")
+        category_id: 카테고리 ID
+        size: 반환할 결과 수
+    
+    Returns:
+        거래 내역 리스트
+    """
+    # #region agent log
+    _log("debug-session", "run1", "C", "api_client.py:search_transactions", "함수 진입", {
+        "query": query[:100] if query else None,
+        "start_date": start_date,
+        "end_date": end_date,
+        "transaction_type": transaction_type,
+        "category_id": category_id,
+        "size": size
+    })
+    # #endregion
+    
+    try:
+        params = {"q": query, "size": size}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        if transaction_type:
+            params["type"] = transaction_type
+        if category_id:
+            params["category_id"] = category_id
+        
+        # #region agent log
+        _log("debug-session", "run1", "C", "api_client.py:search_transactions", "API 요청 전", {"params": params})
+        # #endregion
+        
+        response = httpx.get(
+            f"{API_BASE_URL}/api/search/transactions",
+            params=params,
+            timeout=30.0  # 벡터 검색은 시간이 더 걸릴 수 있음
+        )
+        
+        # #region agent log
+        _log("debug-session", "run1", "C", "api_client.py:search_transactions", "API 응답 수신", {"status_code": response.status_code})
+        # #endregion
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        # 결과에서 results 필드 추출
+        transactions = result.get("results", [])
+        
+        # #region agent log
+        _log("debug-session", "run1", "C", "api_client.py:search_transactions", "함수 종료", {
+            "result_count": len(transactions),
+            "total": result.get("total", 0)
+        })
+        # #endregion
+        
+        return transactions
+    except Exception as e:
+        # #region agent log
+        _log("debug-session", "run1", "C", "api_client.py:search_transactions", "오류 발생", {
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        # #endregion
+        print(f"엘라스틱서치 검색 실패: {e}")
+        return []
+
 def get_accountbook_context(user_question: Optional[str] = None) -> str:
     """
     가계부 데이터를 수집하여 컨텍스트 문자열로 반환합니다.

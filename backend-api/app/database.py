@@ -31,6 +31,6 @@ def get_db():
 
 def init_db():
     """데이터베이스 초기화 및 테이블 생성"""
-    from app.models import user, category, transaction, budget
+    from app.models import user, category, transaction, budget, chat_history
     
     Base.metadata.create_all(bind=engine)

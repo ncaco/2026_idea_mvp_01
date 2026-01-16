@@ -9,7 +9,8 @@ from api_client import (
     get_transactions,
     get_monthly_statistics,
     get_category_statistics,
-    get_categories
+    get_categories,
+    search_transactions
 )
 
 
@@ -23,69 +24,104 @@ def get_transactions_tool(
     limit: int = 100
 ) -> str:
     """
-    거래 내역을 조회합니다. description 필드에서 키워드 검색도 가능합니다.
+    엘라스틱서치를 사용한 하이브리드 검색으로 거래 내역을 조회합니다.
+    키워드 검색과 의미 기반 검색을 결합하여 더 정확한 결과를 제공합니다.
     
     Args:
         start_date: 시작 날짜 (YYYY-MM-DD 형식)
         end_date: 종료 날짜 (YYYY-MM-DD 형식)
         category_id: 카테고리 ID (선택)
         transaction_type: 거래 타입 ("income" 또는 "expense")
-        keywords: description에서 검색할 키워드 리스트 (예: ["남편", "월급"])
-        limit: 최대 조회 개수 (기본값: 100, 키워드 검색 시 더 많이 조회)
+        keywords: 검색할 키워드 리스트 (예: ["남편", "월급"])
+                  키워드가 있으면 엘라스틱서치 하이브리드 검색 사용
+        limit: 최대 조회 개수 (기본값: 100)
     
     Returns:
         JSON 문자열로 변환된 거래 내역 리스트
     """
     try:
-        # 키워드가 있으면 더 많이 조회 (필터링 전에 충분한 데이터 확보)
-        fetch_limit = limit * 3 if keywords else limit
-        
-        transactions = get_transactions(
-            limit=fetch_limit,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        # 필터링
-        filtered = []
-        for trans in transactions:
-            # category_id 필터
-            if category_id and trans.get('category_id') != category_id:
-                continue
-            # transaction_type 필터
-            if transaction_type and trans.get('type') != transaction_type:
-                continue
-            # keywords 필터 (description에서 검색)
-            if keywords:
-                description = trans.get('description', '').lower() if trans.get('description') else ''
-                # description에 키워드가 포함되어 있는지 확인
-                # 하나 이상의 키워드가 포함되면 매칭 (OR 조건 - 더 유연하게)
-                # 부분 매칭도 고려 (예: "남편"만 있어도 "남편 월급" 매칭)
-                matches = any(
-                    keyword.lower() in description
-                    for keyword in keywords
-                    if keyword
+        # 키워드가 있으면 엘라스틱서치 하이브리드 검색 사용
+        if keywords:
+            # 키워드를 자연어 질문으로 변환
+            query_text = " ".join(keywords)
+            
+            # 엘라스틱서치 검색
+            transactions = search_transactions(
+                query=query_text,
+                start_date=start_date,
+                end_date=end_date,
+                transaction_type=transaction_type,
+                category_id=category_id,
+                size=limit
+            )
+            
+            # 검색 결과가 없으면 키워드 없이 일반 조회로 폴백
+            if not transactions:
+                transactions = get_transactions(
+                    limit=limit,
+                    start_date=start_date,
+                    end_date=end_date
                 )
-                if not matches:
-                    continue
-            filtered.append(trans)
-        
-        # 필터링 결과가 없고 키워드가 있었으면, 키워드 없이 전체 반환
-        if not filtered and keywords:
-            # 키워드 필터를 제거하고 다시 필터링 (category_id, transaction_type만 적용)
+                
+                # 필터링
+                filtered = []
+                for trans in transactions:
+                    if category_id and trans.get('category_id') != category_id:
+                        continue
+                    if transaction_type and trans.get('type') != transaction_type:
+                        continue
+                    filtered.append(trans)
+                transactions = filtered[:limit]
+        else:
+            # 키워드가 없으면 일반 조회
+            transactions = get_transactions(
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            # 필터링
+            filtered = []
             for trans in transactions:
                 if category_id and trans.get('category_id') != category_id:
                     continue
                 if transaction_type and trans.get('type') != transaction_type:
                     continue
                 filtered.append(trans)
-        
-        # 최종 limit 적용
-        transactions = filtered[:limit]
+            transactions = filtered[:limit]
         
         return json.dumps(transactions, ensure_ascii=False, default=str)
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        # 엘라스틱서치 검색 실패 시 일반 조회로 폴백
+        try:
+            transactions = get_transactions(
+                limit=limit,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            # 필터링
+            filtered = []
+            for trans in transactions:
+                if category_id and trans.get('category_id') != category_id:
+                    continue
+                if transaction_type and trans.get('type') != transaction_type:
+                    continue
+                if keywords:
+                    description = trans.get('description', '').lower() if trans.get('description') else ''
+                    matches = any(
+                        keyword.lower() in description
+                        for keyword in keywords
+                        if keyword
+                    )
+                    if not matches:
+                        continue
+                filtered.append(trans)
+            
+            transactions = filtered[:limit]
+            return json.dumps(transactions, ensure_ascii=False, default=str)
+        except Exception as fallback_error:
+            return json.dumps({"error": f"검색 실패: {str(e)}, 폴백 실패: {str(fallback_error)}"})
 
 
 @tool

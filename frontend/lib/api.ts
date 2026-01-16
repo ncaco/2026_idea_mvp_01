@@ -1,14 +1,14 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // 토큰 관리
-const getToken = (): string | null => {
+export const getToken = (): string | null => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('auth_token');
   }
   return null;
 };
 
-const setToken = (token: string): void => {
+export const setToken = (token: string): void => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('auth_token', token);
   }
