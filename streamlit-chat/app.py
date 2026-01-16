@@ -2,9 +2,7 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-from lmstudio_client import stream_lmstudio_response
-from api_client import get_accountbook_context
-from prompts import build_prompt
+from langgraph_agent import run_agent, stream_agent_response
 from chat_history import save_messages, load_messages, clear_history
 from chat_logger import log_chat_interaction
 
@@ -301,45 +299,33 @@ if prompt := st.chat_input("질문을 입력하세요..."):
     with st.chat_message("assistant"):
         with st.spinner("답변 생성 중..."):
             try:
-                # 가계부 컨텍스트 수집
+                # LangGraph Agent 실행
                 # #region agent log
-                _log("debug-session", "run1", "D", "app.py:chat_input", "컨텍스트 수집 시작", {})
-                # #endregion
-                context = get_accountbook_context(user_question=prompt)
-                
-                # #region agent log
-                _log("debug-session", "run1", "D", "app.py:chat_input", "컨텍스트 수집 완료", {"context_length": len(context)})
+                _log("debug-session", "run1", "D", "app.py:chat_input", "Agent 실행 시작", {})
                 # #endregion
                 
-                # 프롬프트 구성
-                full_prompt = build_prompt(prompt, context)
+                # Agent 실행
+                result = run_agent(
+                    question=prompt,
+                    messages=st.session_state.messages,
+                    lmstudio_url=st.session_state.lmstudio_url,
+                    model=st.session_state.model
+                )
                 
                 # #region agent log
-                _log("debug-session", "run1", "D", "app.py:chat_input", "프롬프트 구성 완료", {"full_prompt_length": len(full_prompt), "lmstudio_url": st.session_state.lmstudio_url, "model": st.session_state.model})
+                _log("debug-session", "run1", "D", "app.py:chat_input", "Agent 실행 완료", {
+                    "context_length": len(result.get("context", "")),
+                    "response_length": len(result.get("response", "")),
+                    "tools_used": result.get("required_tools", [])
+                })
                 # #endregion
                 
-                # 스트리밍 응답 생성
+                # 응답 표시
+                full_response = result.get("response", "")
+                if not full_response and result.get("error"):
+                    full_response = f"오류가 발생했습니다: {result.get('error')}"
+                
                 response_placeholder = st.empty()
-                full_response = ""
-                
-                # #region agent log
-                _log("debug-session", "run1", "D", "app.py:chat_input", "스트리밍 시작", {})
-                # #endregion
-                
-                for chunk in stream_lmstudio_response(
-                    st.session_state.lmstudio_url,
-                    st.session_state.model,
-                    full_prompt
-                ):
-                    if chunk:
-                        full_response += chunk
-                        response_placeholder.markdown(full_response + "▌")
-                
-                # #region agent log
-                _log("debug-session", "run1", "D", "app.py:chat_input", "스트리밍 완료", {"response_length": len(full_response)})
-                # #endregion
-                
-                # 최종 응답 표시
                 response_placeholder.markdown(full_response)
                 
                 # 메시지 히스토리에 추가
@@ -352,13 +338,17 @@ if prompt := st.chat_input("질문을 입력하세요..."):
                 save_messages(st.session_state.messages)
                 
                 # 채팅 로그 기록
+                # 프롬프트 재구성 (시스템 프롬프트 + 컨텍스트 + 질문)
+                system_prompt = "당신은 AI 가계부 어시스턴트입니다..."
+                full_prompt = f"{system_prompt}\n\n=== 가계부 데이터 컨텍스트 ===\n{result.get('context', '')}\n=== 컨텍스트 끝 ===\n\n사용자 질문: {prompt}"
+                
                 log_chat_interaction(
                     user_input=prompt,
                     model_prompt=full_prompt,
                     model_response=full_response,
                     model_name=st.session_state.model,
                     lmstudio_url=st.session_state.lmstudio_url,
-                    context_length=len(context),
+                    context_length=len(result.get("context", "")),
                     response_length=len(full_response)
                 )
                 
@@ -375,11 +365,9 @@ if prompt := st.chat_input("질문을 입력하세요..."):
                 
                 # 오류 로그 기록
                 try:
-                    context = get_accountbook_context()
-                    full_prompt = build_prompt(prompt, context)
                     log_chat_interaction(
                         user_input=prompt,
-                        model_prompt=full_prompt,
+                        model_prompt="",
                         model_response="",
                         model_name=st.session_state.model,
                         lmstudio_url=st.session_state.lmstudio_url,

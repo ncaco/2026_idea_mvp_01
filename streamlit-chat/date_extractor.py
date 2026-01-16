@@ -17,9 +17,13 @@ def extract_date_from_question(question: str) -> Optional[Tuple[int, int]]:
     """
     question_lower = question.lower()
     
-    # 패턴 1: "작년", "작년 1월", "2025년 1월" 등
+    # 패턴 1: "재작년", "작년", "2025년 1월" 등 (구체적인 패턴 우선)
     patterns = [
-        # "작년 1월", "작년1월"
+        # "재작년 1월", "재작년1월" (현재 년도 - 2)
+        (r'재작년\s*(\d+)월', lambda m: (datetime.now().year - 2, int(m.group(1)))),
+        # "재작년"
+        (r'재작년', lambda m: (datetime.now().year - 2, None)),
+        # "작년 1월", "작년1월" (현재 년도 - 1)
         (r'작년\s*(\d+)월', lambda m: (datetime.now().year - 1, int(m.group(1)))),
         # "작년"
         (r'작년', lambda m: (datetime.now().year - 1, None)),
@@ -55,6 +59,11 @@ def extract_comparison_dates(question: str) -> Optional[Tuple[Tuple[int, int], T
     """
     # 간단한 구현: 두 개의 날짜 패턴 찾기
     dates = []
+    
+    # "재작년 1월" 패턴
+    two_years_ago_match = re.search(r'재작년\s*(\d+)월', question.lower())
+    if two_years_ago_match:
+        dates.append((datetime.now().year - 2, int(two_years_ago_match.group(1))))
     
     # "작년 1월" 패턴
     last_year_match = re.search(r'작년\s*(\d+)월', question.lower())

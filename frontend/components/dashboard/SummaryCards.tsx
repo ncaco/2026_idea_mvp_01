@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { statisticsAPI, MonthlyStatistics, transactionAPI, Transaction } from '@/lib/api';
+import { statisticsAPI, MonthlyStatistics, transactionAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 
 interface TrendData {
@@ -41,8 +41,12 @@ export const SummaryCards: React.FC = () => {
       const previous = await statisticsAPI.getMonthly(previousYear, previousMonth);
       setPreviousStats(previous);
 
-      // 오늘 통계
-      const today = new Date().toISOString().split('T')[0];
+      // 오늘 통계 (로컬 시간대 기준)
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const today = `${year}-${month}-${day}`;
+      
       const transactions = await transactionAPI.getAll({
         start_date: today,
         end_date: today,
@@ -51,10 +55,10 @@ export const SummaryCards: React.FC = () => {
 
       const todayIncome = transactions
         .filter((t) => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
       const todayExpense = transactions
         .filter((t) => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
       setTodayStats({ income: todayIncome, expense: todayExpense });
     } catch (error) {
@@ -93,9 +97,9 @@ export const SummaryCards: React.FC = () => {
     );
   }
 
-  const incomeTrend = calculateTrend(currentStats.income, previousStats?.income || 0);
-  const expenseTrend = calculateTrend(currentStats.expense, previousStats?.expense || 0);
-  const balanceTrend = calculateTrend(currentStats.balance, previousStats?.balance || 0);
+  const incomeTrend = calculateTrend(Number(currentStats.income || 0), Number(previousStats?.income || 0));
+  const expenseTrend = calculateTrend(Number(currentStats.expense || 0), Number(previousStats?.expense || 0));
+  const balanceTrend = calculateTrend(Number(currentStats.balance || 0), Number(previousStats?.balance || 0));
 
   const incomeTrendFormatted = formatTrend(incomeTrend);
   const expenseTrendFormatted = formatTrend(expenseTrend);
@@ -104,43 +108,43 @@ export const SummaryCards: React.FC = () => {
   const cards = [
     {
       title: '이번 달 수입',
-      value: currentStats.income,
+      value: Number(currentStats.income || 0),
       color: 'text-green-600',
       trend: incomeTrendFormatted,
       icon: '💰',
     },
     {
       title: '이번 달 지출',
-      value: currentStats.expense,
+      value: Number(currentStats.expense || 0),
       color: 'text-red-600',
       trend: expenseTrendFormatted,
       icon: '💸',
     },
     {
       title: '이번 달 잔액',
-      value: currentStats.balance,
-      color: currentStats.balance >= 0 ? 'text-green-600' : 'text-red-600',
+      value: Number(currentStats.balance || 0),
+      color: Number(currentStats.balance || 0) >= 0 ? 'text-green-600' : 'text-red-600',
       trend: balanceTrendFormatted,
       icon: '💵',
     },
     {
       title: '오늘 수입',
-      value: todayStats.income,
+      value: Number(todayStats.income || 0),
       color: 'text-green-600',
       trend: null,
       icon: '📈',
     },
     {
       title: '오늘 지출',
-      value: todayStats.expense,
+      value: Number(todayStats.expense || 0),
       color: 'text-red-600',
       trend: null,
       icon: '📉',
     },
     {
       title: '오늘 잔액',
-      value: todayStats.income - todayStats.expense,
-      color: todayStats.income - todayStats.expense >= 0 ? 'text-green-600' : 'text-red-600',
+      value: Number(todayStats.income || 0) - Number(todayStats.expense || 0),
+      color: (Number(todayStats.income || 0) - Number(todayStats.expense || 0)) >= 0 ? 'text-green-600' : 'text-red-600',
       trend: null,
       icon: '📊',
     },
@@ -159,7 +163,7 @@ export const SummaryCards: React.FC = () => {
             <span className="text-lg">{card.icon}</span>
           </div>
           <div className={`text-2xl font-bold ${card.color} mb-1`}>
-            ₩{card.value.toLocaleString()}
+            ₩{Number(card.value || 0).toLocaleString()}
           </div>
           {card.trend && (
             <div className="flex items-center gap-1 text-xs">
