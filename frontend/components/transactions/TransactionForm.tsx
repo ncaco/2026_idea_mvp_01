@@ -64,8 +64,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     }
 
     const numericAmount = parseNumber(amount);
-    if (!amount || numericAmount <= 0) {
-      setError('금액을 입력해주세요.');
+    if (!amount || numericAmount < 0) {
+      setError('금액을 입력해주세요. (0원 이상)');
       setLoading(false);
       return;
     }

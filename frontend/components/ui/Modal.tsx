@@ -62,12 +62,12 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
       <div
-        className={`relative bg-white rounded-lg shadow-xl ${sizeClasses[size]} w-full max-h-[90vh] overflow-hidden flex flex-col animate-fade-in`}
+        className={`relative bg-white rounded-xl border-2 border-gray-200 shadow-2xl ${sizeClasses[size]} w-full max-h-[90vh] overflow-hidden flex flex-col animate-fade-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between px-6 py-5 border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -89,7 +89,7 @@ export const Modal: React.FC<ModalProps> = ({
             </button>
           </div>
         )}
-        <div className="overflow-y-auto custom-scrollbar flex-1 px-6 py-4">
+        <div className="overflow-y-auto custom-scrollbar flex-1 px-6 py-5">
           {children}
         </div>
       </div>

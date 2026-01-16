@@ -10,7 +10,7 @@ interface TableProps {
 export const Table: React.FC<TableProps> = ({ children, className = '' }) => {
   return (
     <div className={`overflow-x-auto custom-scrollbar ${className}`}>
-      <table className="min-w-full divide-y divide-gray-200">{children}</table>
+      <table className="min-w-full divide-y divide-gray-200 rounded-lg">{children}</table>
     </div>
   );
 };
@@ -22,7 +22,7 @@ interface TableHeaderProps {
 
 export const TableHeader: React.FC<TableHeaderProps> = ({ children, className = '' }) => {
   return (
-    <thead className={`bg-gray-50 ${className}`}>
+    <thead className={`bg-gradient-to-r from-gray-50 to-gray-100 ${className}`}>
       <tr>{children}</tr>
     </thead>
   );
@@ -45,15 +45,15 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({
 }) => {
   return (
     <th
-      className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-        sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''
+      className={`px-4 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider ${
+        sortable ? 'cursor-pointer hover:bg-gray-200 select-none transition-colors' : ''
       } ${className}`}
       onClick={sortable ? onSort : undefined}
     >
       <div className="flex items-center gap-2">
         <span>{children}</span>
         {sortable && (
-          <span className="text-gray-400">
+          <span className="text-gray-500 text-sm">
             {sortDirection === 'asc' && '↑'}
             {sortDirection === 'desc' && '↓'}
             {!sortDirection && '⇅'}
@@ -88,9 +88,9 @@ export const TableRow: React.FC<TableRowProps> = ({
 }) => {
   return (
     <tr
-      className={`${hover ? 'hover:bg-gray-50 transition-colors' : ''} ${
+      className={`${hover ? 'hover:bg-blue-50 transition-colors duration-200' : ''} ${
         onClick ? 'cursor-pointer' : ''
-      } ${className}`}
+      } border-b border-gray-100 ${className}`}
       onClick={onClick}
     >
       {children}
@@ -104,5 +104,5 @@ interface TableCellProps {
 }
 
 export const TableCell: React.FC<TableCellProps> = ({ children, className = '' }) => {
-  return <td className={`px-4 py-3 text-sm text-gray-900 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3.5 text-sm text-gray-900 ${className}`}>{children}</td>;
 };

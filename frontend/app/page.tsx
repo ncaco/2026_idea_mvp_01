@@ -4,29 +4,40 @@ import { MonthlyChart } from '@/components/dashboard/MonthlyChart';
 import { CategoryPieChart } from '@/components/dashboard/CategoryPieChart';
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
 import { Button } from '@/components/ui/Button';
+import { Plus, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   return (
     <Layout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
+      <div className="space-y-6">
+        {/* 헤더 섹션 */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">대시보드</h1>
+            <p className="text-sm text-gray-600">가계부 현황을 한눈에 확인하세요</p>
+          </div>
           <div className="flex gap-2">
             <Link href="/transactions">
-              <Button size="sm">거래 추가</Button>
+              <Button size="sm" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                거래 추가
+              </Button>
             </Link>
             <Link href="/categories">
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
                 카테고리 관리
               </Button>
             </Link>
           </div>
         </div>
 
+        {/* 요약 카드 */}
         <SummaryCards />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <MonthlyChart />
           </div>
@@ -35,7 +46,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* 최근 거래 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <RecentTransactions />
           </div>

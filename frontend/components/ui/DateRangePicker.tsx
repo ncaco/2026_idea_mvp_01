@@ -45,7 +45,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="flex items-center gap-2 px-3 py-2.5 border-2 border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all w-full"
       >
         <svg
           className="w-4 h-4 text-gray-400"
@@ -87,21 +87,21 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute z-20 mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4 min-w-[320px]">
-            <div className="space-y-3">
+          <div className="absolute z-20 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl p-4 min-w-[320px]">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">
                   시작일
                 </label>
                 <input
                   type="date"
                   value={startDate || ''}
                   onChange={handleStartDateChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">
                   종료일
                 </label>
                 <input
@@ -109,19 +109,19 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   value={endDate || ''}
                   onChange={handleEndDateChange}
                   min={startDate}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleClear}
-                  className="flex-1 px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   초기화
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 px-3 py-1.5 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   적용
                 </button>

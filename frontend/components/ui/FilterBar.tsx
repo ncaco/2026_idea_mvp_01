@@ -4,6 +4,7 @@ import React from 'react';
 import { SearchInput } from './SearchInput';
 import { DateRangePicker } from './DateRangePicker';
 import { Button } from './Button';
+import { Card } from './Card';
 import { Category } from '@/lib/api';
 
 interface FilterBarProps {
@@ -51,8 +52,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg p-4 space-y-4 ${className}`}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+    <Card compact className={`border-2 border-gray-200 shadow-sm ${className}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <SearchInput
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -127,6 +128,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 };

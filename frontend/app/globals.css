@@ -77,36 +77,6 @@ body::-webkit-scrollbar {
   height: 0 !important;
 }
 
-/* 채팅 영역 등 필요한 곳만 스크롤바 표시 */
-.chat-scrollable,
-.custom-scrollbar {
-  scrollbar-width: thin; /* Firefox */
-  -ms-overflow-style: auto; /* IE and Edge */
-}
-
-.chat-scrollable::-webkit-scrollbar,
-.custom-scrollbar::-webkit-scrollbar {
-  display: block !important;
-  width: 6px;
-  height: 6px;
-}
-
-.chat-scrollable::-webkit-scrollbar-track,
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.chat-scrollable::-webkit-scrollbar-thumb,
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.chat-scrollable::-webkit-scrollbar-thumb:hover,
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
 
 /* 콤팩트한 간격 시스템 */
 .compact-grid {

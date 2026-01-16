@@ -66,3 +66,20 @@ def delete_category(db: Session, category_id: int, user_id: int) -> bool:
     db.delete(db_category)
     db.commit()
     return True
+
+
+def delete_all_categories(
+    db: Session,
+    user_id: int,
+    category_type: Optional[str] = None
+) -> int:
+    """카테고리 전체 삭제 (타입별 필터 적용 가능)"""
+    query = db.query(Category).filter(Category.user_id == user_id)
+    
+    if category_type:
+        query = query.filter(Category.type == category_type)
+    
+    count = query.count()
+    query.delete(synchronize_session=False)
+    db.commit()
+    return count

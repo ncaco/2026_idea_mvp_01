@@ -11,6 +11,7 @@ import {
   statisticsAPI,
   CategoryStatistics,
 } from '@/lib/api';
+import { Download, Upload, Trash2, Plus } from 'lucide-react';
 import { CategoryForm } from './CategoryForm';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -122,9 +123,73 @@ export const CategoryList: React.FC = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const typeText = filterType === 'all' 
+      ? '모든 카테고리' 
+      : filterType === 'income' 
+        ? '모든 수입 카테고리' 
+        : '모든 지출 카테고리';
+
+    if (!confirm(`정말 ${typeText}를 전체 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      const type = filterType !== 'all' ? filterType : undefined;
+      const result = await categoryAPI.deleteAll(type);
+      alert(result.message);
+      await loadCategories();
+    } catch (error: any) {
+      console.error('전체 삭제 실패:', error);
+      alert(`전체 삭제 실패: ${error.message}`);
+    }
+  };
+
   const handleCancel = () => {
     setShowForm(false);
     setEditingCategory(undefined);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const type = filterType !== 'all' ? filterType : undefined;
+      await categoryAPI.exportExcel(type);
+    } catch (error: any) {
+      console.error('엑셀 다운로드 실패:', error);
+      alert(`엑셀 다운로드 실패: ${error.message}`);
+    }
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      alert('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
+      return;
+    }
+    
+    if (!confirm('엑셀 파일을 업로드하시겠습니까? 기존 카테고리는 유지되고 새 카테고리가 추가됩니다.')) {
+      return;
+    }
+    
+    try {
+      const result = await categoryAPI.importExcel(file);
+      alert(
+        `업로드 완료!\n성공: ${result.success}건\n실패: ${result.failed}건${
+          result.errors && result.errors.length > 0
+            ? `\n\n오류:\n${result.errors.slice(0, 5).join('\n')}`
+            : ''
+        }`
+      );
+      await loadCategories();
+      // 파일 입력 초기화
+      event.target.value = '';
+    } catch (error: any) {
+      console.error('엑셀 업로드 실패:', error);
+      alert(`엑셀 업로드 실패: ${error.message}`);
+      event.target.value = '';
+    }
   };
 
   const filteredCategories = categories.filter((category) => {
@@ -138,25 +203,66 @@ export const CategoryList: React.FC = () => {
   const expenseCategories = filteredCategories.filter((c) => c.type === 'expense');
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">카테고리 관리</h2>
-        <Button
-          onClick={() => {
-            setEditingCategory(undefined);
-            setShowForm(true);
-          }}
-        >
-          카테고리 추가
-        </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-1">카테고리 관리</h2>
+          <p className="text-sm text-gray-600">수입/지출 카테고리를 관리하고 통계를 확인하세요</p>
+        </div>
+        <div className="flex gap-2">
+          <label htmlFor="category-excel-upload" className="cursor-pointer">
+            <Button
+              variant="secondary"
+              as="span"
+              className="flex items-center justify-center p-2"
+              title="엑셀 업로드"
+            >
+              <Upload className="w-5 h-5" />
+            </Button>
+            <input
+              id="category-excel-upload"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportExcel}
+              className="hidden"
+            />
+          </label>
+          <Button
+            variant="secondary"
+            onClick={handleExportExcel}
+            className="flex items-center justify-center p-2"
+            title="엑셀 다운로드"
+          >
+            <Download className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteAll}
+            className="flex items-center justify-center p-2"
+            title="전체 삭제"
+          >
+            <Trash2 className="w-5 h-5" />
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingCategory(undefined);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            카테고리 추가
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="flex gap-2">
           <Button
             variant={filterType === 'all' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('all')}
+            className="font-medium"
           >
             전체
           </Button>
@@ -164,6 +270,7 @@ export const CategoryList: React.FC = () => {
             variant={filterType === 'income' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('income')}
+            className="font-medium"
           >
             수입
           </Button>
@@ -171,6 +278,7 @@ export const CategoryList: React.FC = () => {
             variant={filterType === 'expense' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('expense')}
+            className="font-medium"
           >
             지출
           </Button>
@@ -185,10 +293,10 @@ export const CategoryList: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <Card key={i} compact>
-              <div className="h-32 skeleton rounded" />
+            <Card key={i} compact className="border-2 border-gray-200">
+              <div className="h-32 skeleton rounded-xl" />
             </Card>
           ))}
         </div>
@@ -196,13 +304,16 @@ export const CategoryList: React.FC = () => {
         <>
           {incomeCategories.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">수입 카테고리</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-1 h-5 bg-green-500 rounded-full"></span>
+                수입 카테고리
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {incomeCategories.map((category) => (
                   <Card
                     key={category.id}
                     compact
-                    className="interactive hover:shadow-lg transition-all"
+                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 hover:border-green-300 hover:scale-105"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -212,25 +323,27 @@ export const CategoryList: React.FC = () => {
                             style={{ backgroundColor: category.color }}
                           />
                         )}
-                        <span className="font-semibold text-sm truncate">{category.name}</span>
+                        <span className="font-bold text-sm truncate">{category.name}</span>
                       </div>
                     </div>
-                    <div className="space-y-1 mb-3">
-                      <div className="text-xs text-gray-600">
-                        거래 수: <span className="font-medium">{category.transactionCount || 0}건</span>
+                    <div className="space-y-1.5 mb-3 bg-white/50 rounded-lg p-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 font-medium">거래 수</span>
+                        <span className="font-bold text-gray-900">{category.transactionCount || 0}건</span>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        총액: <span className="font-medium text-green-600">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 font-medium">총액</span>
+                        <span className="font-bold text-green-600">
                           ₩{Number(category.totalAmount || 0).toLocaleString('ko-KR')}
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleEdit(category)}
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs font-medium"
                       >
                         수정
                       </Button>
@@ -238,7 +351,7 @@ export const CategoryList: React.FC = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDelete(category.id)}
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs font-medium"
                       >
                         삭제
                       </Button>
@@ -251,13 +364,16 @@ export const CategoryList: React.FC = () => {
 
           {expenseCategories.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 mt-4">지출 카테고리</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <h3 className="text-base font-bold text-gray-800 mb-3 mt-6 flex items-center gap-2">
+                <span className="w-1 h-5 bg-red-500 rounded-full"></span>
+                지출 카테고리
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {expenseCategories.map((category) => (
                   <Card
                     key={category.id}
                     compact
-                    className="interactive hover:shadow-lg transition-all"
+                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 hover:border-red-300 hover:scale-105"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -267,7 +383,7 @@ export const CategoryList: React.FC = () => {
                             style={{ backgroundColor: category.color }}
                           />
                         )}
-                        <span className="font-semibold text-sm truncate">{category.name}</span>
+                        <span className="font-bold text-sm truncate">{category.name}</span>
                       </div>
                     </div>
                     <div className="space-y-1 mb-3">
@@ -280,12 +396,12 @@ export const CategoryList: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleEdit(category)}
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs font-medium"
                       >
                         수정
                       </Button>
@@ -293,7 +409,7 @@ export const CategoryList: React.FC = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDelete(category.id)}
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs font-medium"
                       >
                         삭제
                       </Button>
@@ -305,8 +421,8 @@ export const CategoryList: React.FC = () => {
           )}
 
           {filteredCategories.length === 0 && (
-            <Card>
-              <div className="text-center py-12 text-gray-500">
+            <Card className="border-2 border-gray-200">
+              <div className="text-center py-12 text-gray-500 text-base">
                 {searchValue ? '검색 결과가 없습니다.' : '카테고리가 없습니다.'}
               </div>
             </Card>

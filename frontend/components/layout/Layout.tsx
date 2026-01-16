@@ -27,12 +27,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       console.log('localStorage에서 토큰 확인:', token ? token.substring(0, 20) + '...' : '없음');
       
       if (!token) {
-        console.warn('토큰이 없습니다. (리다이렉트하지 않음 - 로그 확인용)');
-        // 리다이렉트 제거 (로그 확인용)
-        // if (pathname !== '/login') {
-        //   console.log('토큰이 없어 로그인 페이지로 리다이렉트합니다');
-        //   window.location.href = '/login';
-        // }
+        console.warn('토큰이 없습니다. 로그인 페이지로 리다이렉트합니다');
+        if (pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return;
       }
       
@@ -48,10 +46,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           console.error('에러 메시지:', error.message);
           // 토큰이 없거나 만료된 경우
           removeToken();
-          // 리다이렉트 제거 (로그 확인용)
-          // if (pathname !== '/login') {
-          //   window.location.href = '/login';
-          // }
+          if (pathname !== '/login') {
+            window.location.href = '/login';
+          }
         });
     }, 100); // 100ms 지연
     
@@ -67,7 +64,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: '/', label: '대시보드' },
     { href: '/transactions', label: '거래 내역' },
     { href: '/categories', label: '카테고리' },
-    { href: '/chat', label: '채팅' },
   ];
 
   return (
@@ -77,7 +73,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex justify-between h-12 items-center">
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="flex-shrink-0">
-                <h1 className="text-base sm:text-lg font-bold text-gray-900">AI 가계부</h1>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900">가계부</h1>
               </div>
               <div className="hidden sm:flex sm:space-x-1">
                 {navItems.map((item) => (
@@ -157,7 +153,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </nav>
-      <main className={`w-full ${pathname === '/chat' ? 'p-0' : 'px-3 sm:px-4 lg:px-6 py-4'} max-w-[1920px] mx-auto ${pathname === '/chat' ? 'h-[calc(100vh-3rem)]' : ''}`}>
+      <main className="w-full px-3 sm:px-4 lg:px-6 py-4 max-w-[1920px] mx-auto">
         {children}
       </main>
     </div>

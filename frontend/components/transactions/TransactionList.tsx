@@ -9,6 +9,7 @@ import {
   categoryAPI,
   Category,
 } from '@/lib/api';
+import { Download, Upload, Trash2, Plus } from 'lucide-react';
 import { TransactionForm } from './TransactionForm';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -116,6 +117,45 @@ export const TransactionList: React.FC = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const filterInfo = [];
+    if (startDate) filterInfo.push(`시작일: ${startDate}`);
+    if (endDate) filterInfo.push(`종료일: ${endDate}`);
+    if (typeFilter !== 'all') filterInfo.push(`유형: ${typeFilter === 'income' ? '수입' : '지출'}`);
+    if (selectedCategoryIds.length > 0) {
+      const categoryNames = selectedCategoryIds
+        .map(id => categories.find(c => c.id === id)?.name)
+        .filter(Boolean)
+        .join(', ');
+      filterInfo.push(`카테고리: ${categoryNames}`);
+    }
+
+    const filterText = filterInfo.length > 0 
+      ? `\n\n현재 필터 조건:\n${filterInfo.join('\n')}`
+      : '\n\n모든 거래 내역이 삭제됩니다.';
+
+    if (!confirm(`정말 전체 삭제하시겠습니까?${filterText}\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      const params: any = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      if (selectedCategoryIds.length === 1) {
+        params.category_id = selectedCategoryIds[0];
+      }
+
+      const result = await transactionAPI.deleteAll(params);
+      alert(result.message);
+      await loadTransactions();
+    } catch (error: any) {
+      console.error('전체 삭제 실패:', error);
+      alert(`전체 삭제 실패: ${error.message}`);
+    }
+  };
+
   const handleCancel = () => {
     setShowForm(false);
     setEditingTransaction(undefined);
@@ -211,18 +251,107 @@ export const TransactionList: React.FC = () => {
     return categories.find((c) => c.id === categoryId)?.color || '#6b7280';
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const params: any = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      if (selectedCategoryIds.length === 1) {
+        params.category_id = selectedCategoryIds[0];
+      }
+      
+      await transactionAPI.exportExcel(params);
+    } catch (error: any) {
+      console.error('엑셀 다운로드 실패:', error);
+      alert(`엑셀 다운로드 실패: ${error.message}`);
+    }
+  };
+
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      alert('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
+      return;
+    }
+    
+    if (!confirm('엑셀 파일을 업로드하시겠습니까? 기존 데이터는 유지되고 새 데이터가 추가됩니다.')) {
+      return;
+    }
+    
+    try {
+      const result = await transactionAPI.importExcel(file);
+      alert(
+        `업로드 완료!\n성공: ${result.success}건\n실패: ${result.failed}건${
+          result.errors && result.errors.length > 0
+            ? `\n\n오류:\n${result.errors.slice(0, 5).join('\n')}`
+            : ''
+        }`
+      );
+      await loadTransactions();
+      // 파일 입력 초기화
+      event.target.value = '';
+    } catch (error: any) {
+      console.error('엑셀 업로드 실패:', error);
+      alert(`엑셀 업로드 실패: ${error.message}`);
+      event.target.value = '';
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">거래 내역</h2>
-        <Button
-          onClick={() => {
-            setEditingTransaction(undefined);
-            setShowForm(true);
-          }}
-        >
-          거래 추가
-        </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-1">거래 내역</h2>
+          <p className="text-sm text-gray-600">모든 거래 내역을 확인하고 관리하세요</p>
+        </div>
+        <div className="flex gap-2">
+          <label htmlFor="excel-upload" className="cursor-pointer">
+            <Button
+              variant="secondary"
+              as="span"
+              className="flex items-center justify-center p-2"
+              title="엑셀 업로드"
+            >
+              <Upload className="w-5 h-5" />
+            </Button>
+            <input
+              id="excel-upload"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportExcel}
+              className="hidden"
+            />
+          </label>
+          <Button
+            variant="secondary"
+            onClick={handleExportExcel}
+            className="flex items-center justify-center p-2"
+            title="엑셀 다운로드"
+          >
+            <Download className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteAll}
+            className="flex items-center justify-center p-2"
+            title="전체 삭제"
+          >
+            <Trash2 className="w-5 h-5" />
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingTransaction(undefined);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            거래 추가
+          </Button>
+        </div>
       </div>
 
       <FilterBar
@@ -242,15 +371,19 @@ export const TransactionList: React.FC = () => {
         onClearFilters={handleClearFilters}
       />
 
-      <Card compact>
+      <Card 
+        compact
+        className="border-2 border-gray-200 shadow-sm"
+      >
         {loading ? (
           <div className="text-center py-12 text-gray-500">
-            <div className="skeleton w-full h-64 rounded" />
+            <div className="skeleton w-full h-64 rounded-xl" />
           </div>
         ) : filteredAndSortedTransactions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">거래 내역이 없습니다.</div>
+          <div className="text-center py-12 text-gray-500 text-base">거래 내역이 없습니다.</div>
         ) : (
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableHeaderCell
                 sortable
@@ -347,9 +480,10 @@ export const TransactionList: React.FC = () => {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
         {!loading && filteredAndSortedTransactions.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600 text-center">
+          <div className="mt-4 pt-4 border-t-2 border-gray-200 text-sm font-medium text-gray-700 text-center">
             총 {filteredAndSortedTransactions.length}건의 거래 내역
           </div>
         )}

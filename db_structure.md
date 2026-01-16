@@ -63,22 +63,11 @@ SQLite 데이터베이스를 사용하며, 파일은 `data/accountbook.db`에 �
 
 **Phase 1에서는 기본 구조만 정의하고, 실제 기능은 Phase 3에서 구현됩니다.**
 
-### 5. chat_history (채팅 히스토리)
-
-| 컬럼명 | 타입 | 제약조건 | 설명 |
-|--------|------|----------|------|
-| id | INTEGER | PRIMARY KEY, AUTOINCREMENT | 채팅 히스토리 ID |
-| user_id | INTEGER | FOREIGN KEY (users.id), NOT NULL | 사용자 ID |
-| role | TEXT | NOT NULL | 역할: 'user' (사용자) 또는 'assistant' (AI) |
-| content | TEXT | NOT NULL | 메시지 내용 |
-| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 생성일시 |
-
 ## 관계
 
 - `users` 1:N `categories`
 - `users` 1:N `transactions`
 - `users` 1:N `budgets`
-- `users` 1:N `chat_history`
 - `categories` 1:N `transactions`
 - `categories` 1:N `budgets`
 
@@ -89,4 +78,3 @@ SQLite 데이터베이스를 사용하며, 파일은 `data/accountbook.db`에 �
 - `transactions.category_id`: 카테고리별 거래 조회 최적화
 - `categories.user_id`: 사용자별 카테고리 조회 최적화
 - `categories.type`: 타입별 카테고리 조회 최적화
-- `chat_history.user_id, created_at`: 사용자별 채팅 히스토리 조회 최적화

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TrendingUp, TrendingDown, Wallet, ArrowUpCircle, ArrowDownCircle, BarChart3 } from 'lucide-react';
 import { statisticsAPI, MonthlyStatistics, transactionAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 
@@ -114,72 +115,97 @@ export const SummaryCards: React.FC = () => {
       title: '이번 달 수입',
       value: Number(currentStats.income || 0),
       color: 'text-green-600',
+      bgGradient: 'from-green-50 to-emerald-50',
+      borderColor: 'border-green-200',
       trend: incomeTrendFormatted,
-      icon: '💰',
+      icon: ArrowUpCircle,
+      iconColor: 'text-green-600',
     },
     {
       title: '이번 달 지출',
       value: Number(currentStats.expense || 0),
       color: 'text-red-600',
+      bgGradient: 'from-red-50 to-rose-50',
+      borderColor: 'border-red-200',
       trend: expenseTrendFormatted,
-      icon: '💸',
+      icon: ArrowDownCircle,
+      iconColor: 'text-red-600',
     },
     {
       title: '이번 달 잔액',
       value: Number(currentStats.balance || 0),
       color: Number(currentStats.balance || 0) >= 0 ? 'text-green-600' : 'text-red-600',
+      bgGradient: Number(currentStats.balance || 0) >= 0 ? 'from-blue-50 to-cyan-50' : 'from-orange-50 to-amber-50',
+      borderColor: Number(currentStats.balance || 0) >= 0 ? 'border-blue-200' : 'border-orange-200',
       trend: balanceTrendFormatted,
-      icon: '💵',
+      icon: Wallet,
+      iconColor: Number(currentStats.balance || 0) >= 0 ? 'text-blue-600' : 'text-orange-600',
     },
     {
       title: '오늘 수입',
       value: Number(todayStats.income || 0),
       color: 'text-green-600',
+      bgGradient: 'from-green-50 to-emerald-50',
+      borderColor: 'border-green-200',
       trend: null,
-      icon: '📈',
+      icon: TrendingUp,
+      iconColor: 'text-green-600',
     },
     {
       title: '오늘 지출',
       value: Number(todayStats.expense || 0),
       color: 'text-red-600',
+      bgGradient: 'from-red-50 to-rose-50',
+      borderColor: 'border-red-200',
       trend: null,
-      icon: '📉',
+      icon: TrendingDown,
+      iconColor: 'text-red-600',
     },
     {
       title: '오늘 잔액',
       value: Number(todayStats.income || 0) - Number(todayStats.expense || 0),
       color: (Number(todayStats.income || 0) - Number(todayStats.expense || 0)) >= 0 ? 'text-green-600' : 'text-red-600',
+      bgGradient: (Number(todayStats.income || 0) - Number(todayStats.expense || 0)) >= 0 ? 'from-blue-50 to-cyan-50' : 'from-orange-50 to-amber-50',
+      borderColor: (Number(todayStats.income || 0) - Number(todayStats.expense || 0)) >= 0 ? 'border-blue-200' : 'border-orange-200',
       trend: null,
-      icon: '📊',
+      icon: BarChart3,
+      iconColor: (Number(todayStats.income || 0) - Number(todayStats.expense || 0)) >= 0 ? 'text-blue-600' : 'text-orange-600',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      {cards.map((card, index) => (
-        <Card
-          key={index}
-          compact
-          className="interactive hover:shadow-lg transition-all duration-200"
-        >
-          <div className="flex items-start justify-between mb-2">
-            <div className="text-xs text-gray-600 font-medium">{card.title}</div>
-            <span className="text-lg">{card.icon}</span>
-          </div>
-          <div className={`text-2xl font-bold ${card.color} mb-1`}>
-            ₩{Number(card.value || 0).toLocaleString()}
-          </div>
-          {card.trend && (
-            <div className="flex items-center gap-1 text-xs">
-              <span className={card.trend.color}>{card.trend.icon}</span>
-              <span className={card.trend.color}>
-                {card.trend.value} ({card.trend.percent})
-              </span>
-              <span className="text-gray-500">전월 대비</span>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {cards.map((card, index) => {
+        const Icon = card.icon;
+        return (
+          <Card
+            key={index}
+            compact
+            className={`interactive hover:shadow-xl transition-all duration-300 border-2 ${card.borderColor} bg-gradient-to-br ${card.bgGradient} hover:scale-105`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="text-xs font-semibold text-gray-700">{card.title}</div>
+              <div className={`p-1.5 rounded-lg bg-white/60 ${card.iconColor}`}>
+                <Icon className="w-4 h-4" />
+              </div>
             </div>
-          )}
-        </Card>
-      ))}
+            <div className={`text-2xl font-bold ${card.color} mb-2`}>
+              ₩{Number(card.value || 0).toLocaleString()}
+            </div>
+            {card.trend && (
+              <div className="flex items-center gap-1.5 text-xs pt-2 border-t border-white/50">
+                <span className={card.trend.color}>
+                  {card.trend.icon === '↑' ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
+                </span>
+                <span className={`font-medium ${card.trend.color}`}>
+                  {card.trend.value} ({card.trend.percent})
+                </span>
+                <span className="text-gray-500 text-[10px]">전월 대비</span>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 };

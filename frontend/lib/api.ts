@@ -141,51 +141,58 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     headers,
   });
 
-  if (!response.ok) {
-    // 401 오류인 경우 상세 로그 출력
-    if (response.status === 401) {
-      const token = getToken();
-      console.error('=== 401 Unauthorized 오류 ===');
-      console.error('API 엔드포인트:', endpoint);
-      console.error('토큰 존재 여부:', token ? '있음' : '없음');
-      console.error('토큰 값 (처음 20자):', token ? token.substring(0, 20) + '...' : 'N/A');
-      console.error('현재 경로:', typeof window !== 'undefined' ? window.location.pathname : 'N/A');
-      console.error('요청 헤더:', headers);
-      
-      // 백엔드 응답 본문 확인
-      try {
-        const errorBody = await response.clone().json();
-        console.error('백엔드 응답 본문:', errorBody);
-      } catch (e) {
-        console.error('백엔드 응답 본문 파싱 실패:', e);
+    // 204 No Content 응답은 본문이 없으므로 JSON 파싱하지 않음
+    if (response.status === 204) {
+      return null as any;
+    }
+
+    if (!response.ok) {
+      // 401 오류인 경우 상세 로그 출력
+      if (response.status === 401) {
+        const token = getToken();
+        console.error('=== 401 Unauthorized 오류 ===');
+        console.error('API 엔드포인트:', endpoint);
+        console.error('토큰 존재 여부:', token ? '있음' : '없음');
+        console.error('토큰 값 (처음 20자):', token ? token.substring(0, 20) + '...' : 'N/A');
+        console.error('현재 경로:', typeof window !== 'undefined' ? window.location.pathname : 'N/A');
+        console.error('요청 헤더:', headers);
+        
+        // 백엔드 응답 본문 확인
+        try {
+          const errorBody = await response.clone().json();
+          console.error('백엔드 응답 본문:', errorBody);
+        } catch (e) {
+          console.error('백엔드 응답 본문 파싱 실패:', e);
+        }
+        
+        // 토큰 제거 및 로그인 페이지로 리다이렉트
+        removeToken();
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
       
-      // 토큰 제거는 하지만 리다이렉트는 하지 않음 (로그 확인용)
-      removeToken();
-      console.warn('토큰을 제거했습니다. (리다이렉트하지 않음 - 로그 확인용)');
+      // 422 오류인 경우 상세 로그 출력 (유효성 검증 오류)
+      if (response.status === 422) {
+        console.error('=== 422 Unprocessable Content 오류 ===');
+        console.error('API 엔드포인트:', endpoint);
+        console.error('요청 본문:', options.body);
+      }
+      
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      
+      // 422 오류의 경우 FastAPI의 상세한 유효성 검증 오류 메시지 표시
+      if (response.status === 422 && error.detail && Array.isArray(error.detail)) {
+        const validationErrors = error.detail
+          .map((err: any) => `${err.loc?.join('.')}: ${err.msg}`)
+          .join(', ');
+        throw new Error(`입력 데이터 오류: ${validationErrors}`);
+      }
+      
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
     }
-    
-    // 422 오류인 경우 상세 로그 출력 (유효성 검증 오류)
-    if (response.status === 422) {
-      console.error('=== 422 Unprocessable Content 오류 ===');
-      console.error('API 엔드포인트:', endpoint);
-      console.error('요청 본문:', options.body);
-    }
-    
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    
-    // 422 오류의 경우 FastAPI의 상세한 유효성 검증 오류 메시지 표시
-    if (response.status === 422 && error.detail && Array.isArray(error.detail)) {
-      const validationErrors = error.detail
-        .map((err: any) => `${err.loc?.join('.')}: ${err.msg}`)
-        .join(', ');
-      throw new Error(`입력 데이터 오류: ${validationErrors}`);
-    }
-    
-    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
-  }
 
-  return response.json();
+    return response.json();
 }
 
 // Transaction API
@@ -231,6 +238,98 @@ export const transactionAPI = {
     fetchAPI<void>(`/api/transactions/${id}`, {
       method: 'DELETE',
     }),
+
+  deleteAll: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    category_id?: number;
+    type?: 'income' | 'expense';
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    return fetchAPI<{ message: string; deleted_count: number }>(
+      `/api/transactions?${queryParams.toString()}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  exportExcel: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    category_id?: number;
+    type?: 'income' | 'expense';
+  }) => {
+    const token = getToken();
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `${API_BASE_URL}/api/transactions/export/excel?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    
+    // Content-Disposition 헤더에서 파일명 추출
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = '거래내역.xlsx';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  importExcel: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/transactions/import/excel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
 };
 
 // Category API
@@ -258,6 +357,80 @@ export const categoryAPI = {
     fetchAPI<void>(`/api/categories/${id}`, {
       method: 'DELETE',
     }),
+
+  deleteAll: async (type?: 'income' | 'expense') => {
+    const queryParams = new URLSearchParams();
+    if (type) {
+      queryParams.append('type', type);
+    }
+    return fetchAPI<{ message: string; deleted_count: number }>(
+      `/api/categories?${queryParams.toString()}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  exportExcel: async (type?: 'income' | 'expense') => {
+    const token = getToken();
+    const queryParams = new URLSearchParams();
+    if (type) {
+      queryParams.append('type', type);
+    }
+    
+    const url = `${API_BASE_URL}/api/categories/export/excel?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    
+    // Content-Disposition 헤더에서 파일명 추출
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = '카테고리.xlsx';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+      if (filenameMatch) {
+        filename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  importExcel: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/categories/import/excel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
 };
 
 // Statistics API

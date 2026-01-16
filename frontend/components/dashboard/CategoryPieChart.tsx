@@ -44,13 +44,55 @@ export const CategoryPieChart: React.FC = () => {
     }
   };
 
-  const chartData: ChartData[] = data.map((item) => ({
+  // 전체 데이터를 금액 기준으로 정렬
+  const sortedData = [...data].sort((a, b) => b.total - a.total);
+  
+  // 전체 금액 계산
+  const totalAmount = sortedData.reduce((sum, item) => sum + item.total, 0);
+  
+  // 비율 기준 설정 (3% 미만은 기타로 묶기)
+  const MIN_PERCENTAGE = 3;
+  const minAmount = (totalAmount * MIN_PERCENTAGE) / 100;
+  
+  // 상위 카테고리 개수 설정 (최대 7개)
+  const MAX_CATEGORIES = 7;
+  
+  // 표시할 카테고리와 기타로 묶을 카테고리 분리
+  const displayCategories: typeof sortedData = [];
+  const otherCategories: typeof sortedData = [];
+  
+  sortedData.forEach((item, index) => {
+    // 상위 MAX_CATEGORIES 개 이내이고 비율이 MIN_PERCENTAGE 이상인 경우만 표시
+    if (index < MAX_CATEGORIES && item.total >= minAmount) {
+      displayCategories.push(item);
+    } else {
+      otherCategories.push(item);
+    }
+  });
+  
+  // 기타 카테고리 합계 계산
+  const otherTotal = otherCategories.reduce((sum, item) => sum + item.total, 0);
+  const otherCount = otherCategories.reduce((sum, item) => sum + item.count, 0);
+  
+  // 차트 데이터 생성
+  const chartData: ChartData[] = displayCategories.map((item) => ({
     name: item.category_name,
     value: item.total,
     color: item.color || '#3B82F6',
     count: item.count,
     categoryId: item.category_id,
   }));
+  
+  // 기타 카테고리가 있으면 추가
+  if (otherCategories.length > 0 && otherTotal > 0) {
+    chartData.push({
+      name: `기타 (${otherCategories.length}개)`,
+      value: otherTotal,
+      color: '#94a3b8', // 회색
+      count: otherCount,
+      categoryId: -1, // 기타는 ID가 없음
+    });
+  }
 
   const COLORS = chartData.map((item) => item.color);
 
@@ -144,19 +186,27 @@ export const CategoryPieChart: React.FC = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as ChartData;
       return (
-        <div className="bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-          <p className="font-semibold mb-2" style={{ color: data.color }}>
-            {data.name}
-          </p>
-          <p className="text-sm text-gray-700">
-            금액: ₩{data.value.toLocaleString()}
-          </p>
-          <p className="text-sm text-gray-700">
-            거래 수: {data.count}건
-          </p>
-          <p className="text-sm text-gray-500">
-            비율: {((data.value / chartData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%
-          </p>
+        <div className="bg-white border-2 border-gray-200 rounded-xl shadow-xl p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div 
+              className="w-4 h-4 rounded-full" 
+              style={{ backgroundColor: data.color }}
+            />
+            <p className="font-bold text-base" style={{ color: data.color }}>
+              {data.name}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold text-gray-700">
+              금액: <span className="font-bold" style={{ color: data.color }}>₩{data.value.toLocaleString()}</span>
+            </p>
+            <p className="text-sm text-gray-600">
+              거래 수: <span className="font-medium">{data.count}건</span>
+            </p>
+            <p className="text-sm text-gray-500">
+              비율: <span className="font-semibold">{((data.value / chartData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1)}%</span>
+            </p>
+          </div>
         </div>
       );
     }
@@ -175,41 +225,61 @@ export const CategoryPieChart: React.FC = () => {
 
   if (chartData.length === 0) {
     return (
-      <Card title="카테고리별 지출" compact>
+      <Card 
+        title="카테고리별 지출" 
+        compact
+        className="border-2 border-gray-200 hover:border-blue-300 transition-colors shadow-sm hover:shadow-md"
+      >
         <div className="h-48 flex items-center justify-center text-gray-500">
           데이터가 없습니다.
         </div>
       </Card>
     );
   }
+  
+  // 카테고리 개수가 많거나 기타로 묶인 경우 안내 메시지
+  const showInfo = sortedData.length > MAX_CATEGORIES || otherCategories.length > 0;
 
   return (
-    <Card title="카테고리별 지출" compact className="interactive">
-      <div className="mb-3 flex items-center gap-2">
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-            <option key={year} value={year}>
-              {year}년
-            </option>
-          ))}
-        </select>
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-            <option key={month} value={month}>
-              {month}월
-            </option>
-          ))}
-        </select>
+    <Card 
+      title="카테고리별 지출" 
+      compact 
+      className="interactive border-2 border-gray-200 hover:border-blue-300 transition-colors shadow-sm hover:shadow-md"
+    >
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-2 py-1.5 text-xs border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+              <option key={year} value={year}>
+                {year}년
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="px-2 py-1.5 text-xs border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-medium"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+              <option key={month} value={month}>
+                {month}월
+              </option>
+            ))}
+          </select>
+        </div>
+        {showInfo && (
+          <div className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded-md">
+            {otherCategories.length > 0 
+              ? `${MIN_PERCENTAGE}% 미만은 기타로 표시`
+              : `상위 ${MAX_CATEGORIES}개 표시`}
+          </div>
+        )}
       </div>
-      <ResponsiveContainer width="100%" height={250}>
+      <ResponsiveContainer width="100%" height={280}>
         <PieChart>
           <Pie
             activeIndex={activeIndex ?? undefined}
@@ -238,6 +308,20 @@ export const CategoryPieChart: React.FC = () => {
           />
         </PieChart>
       </ResponsiveContainer>
+      {showInfo && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <p className="text-xs text-gray-500 text-center">
+            {otherCategories.length > 0 ? (
+              <>
+                총 {sortedData.length}개 카테고리 중 {displayCategories.length}개 표시, 
+                {otherCategories.length}개는 기타로 묶음 ({MIN_PERCENTAGE}% 미만)
+              </>
+            ) : (
+              <>총 {sortedData.length}개 카테고리 중 상위 {MAX_CATEGORIES}개만 표시됩니다</>
+            )}
+          </p>
+        </div>
+      )}
     </Card>
   );
 };
