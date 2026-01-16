@@ -11,7 +11,7 @@ class CategoryBase(BaseModel):
 
 
 class CategoryCreate(CategoryBase):
-    user_id: int
+    pass
 
 
 class CategoryUpdate(BaseModel):

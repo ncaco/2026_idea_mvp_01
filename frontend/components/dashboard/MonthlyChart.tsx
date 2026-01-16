@@ -38,7 +38,12 @@ export const MonthlyChart: React.FC = () => {
             year: selectedYear,
             month,
           });
-        } catch (error) {
+        } catch (error: any) {
+          // 401 오류인 경우 (인증 실패)는 조용히 처리 (이미 리다이렉트됨)
+          if (error?.message?.includes('401') || error?.message?.includes('인증')) {
+            return; // 컴포넌트 언마운트되거나 리다이렉트될 것이므로 중단
+          }
+          console.error(`월별 통계 조회 실패 (${selectedYear}년 ${month}월):`, error);
           monthlyData.push({
             income: 0,
             expense: 0,

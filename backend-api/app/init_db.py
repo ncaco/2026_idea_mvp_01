@@ -3,13 +3,18 @@
 """
 from app.database import init_db, SessionLocal
 from app.models import User, Category
+from app.core.security import get_password_hash
 
 
 def create_default_user(db):
-    """기본 사용자 생성"""
+    """기본 사용자 생성 (비밀번호: default)"""
     user = db.query(User).filter(User.username == "default").first()
     if not user:
-        user = User(username="default", email="user@example.com")
+        user = User(
+            username="default",
+            email="user@example.com",
+            hashed_password=get_password_hash("default")
+        )
         db.add(user)
         db.commit()
         db.refresh(user)

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import transactions, categories, statistics
+from app.routers import transactions, categories, statistics, auth
 
 app = FastAPI(title="AI 가계부 API", version="1.0.0")
 
@@ -14,6 +14,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])

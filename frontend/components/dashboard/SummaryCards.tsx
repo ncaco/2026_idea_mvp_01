@@ -61,7 +61,11 @@ export const SummaryCards: React.FC = () => {
         .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
       setTodayStats({ income: todayIncome, expense: todayExpense });
-    } catch (error) {
+    } catch (error: any) {
+      // 401 오류인 경우 (인증 실패)는 조용히 처리 (이미 리다이렉트됨)
+      if (error?.message?.includes('401') || error?.message?.includes('인증')) {
+        return;
+      }
       console.error('통계 로드 실패:', error);
     } finally {
       setLoading(false);

@@ -4,25 +4,24 @@ from sqlalchemy import func, and_, extract
 from typing import List, Optional
 from datetime import date, datetime
 from app.database import get_db
-from app.models import Transaction, Category
+from app.models import Transaction, Category, User
+from app.core.security import get_current_user
 
 router = APIRouter()
-
-# Phase 1에서는 기본 사용자 ID 1 사용
-DEFAULT_USER_ID = 1
 
 
 @router.get("/monthly")
 def get_monthly_statistics(
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None, ge=1, le=12),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """월별 수입/지출 합계"""
     query = db.query(
         Transaction.type,
         func.sum(Transaction.amount).label("total")
-    ).filter(Transaction.user_id == DEFAULT_USER_ID)
+    ).filter(Transaction.user_id == current_user.id)
     
     if year:
         query = query.filter(extract("year", Transaction.transaction_date) == year)
@@ -54,7 +53,8 @@ def get_category_statistics(
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None, ge=1, le=12),
     type: str = Query("expense", regex="^(income|expense)$"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """카테고리별 지출/수입 통계"""
     query = db.query(
@@ -67,7 +67,7 @@ def get_category_statistics(
         Transaction, Category.id == Transaction.category_id
     ).filter(
         and_(
-            Transaction.user_id == DEFAULT_USER_ID,
+            Transaction.user_id == current_user.id,
             Transaction.type == type
         )
     )

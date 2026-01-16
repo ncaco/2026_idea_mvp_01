@@ -26,9 +26,11 @@ def get_categories(
     return query.order_by(Category.type, Category.name).all()
 
 
-def create_category(db: Session, category: CategoryCreate) -> Category:
+def create_category(db: Session, category: CategoryCreate, user_id: int) -> Category:
     """카테고리 생성"""
-    db_category = Category(**category.model_dump())
+    category_data = category.model_dump()
+    category_data['user_id'] = user_id
+    db_category = Category(**category_data)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
