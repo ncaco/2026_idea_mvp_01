@@ -85,7 +85,7 @@ export const PredictionChart: React.FC = () => {
                 />
                 <YAxis />
                 <Tooltip
-                  formatter={(value: number) => `₩${value.toLocaleString()}`}
+                      formatter={(value: number | undefined) => value !== undefined ? `₩${value.toLocaleString()}` : ''}
                 />
                 <Legend />
                 <Bar dataKey="predicted_amount" fill="#8884d8" name="예상 지출" />

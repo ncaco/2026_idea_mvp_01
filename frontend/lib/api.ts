@@ -20,6 +20,16 @@ export const removeToken = (): void => {
   }
 };
 
+export interface Tag {
+  id: number;
+  user_id: number;
+  name: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
+  transaction_count?: number;
+}
+
 export interface Transaction {
   id: number;
   user_id: number;
@@ -28,6 +38,7 @@ export interface Transaction {
   amount: number;
   description?: string;
   transaction_date: string;
+  tags?: Tag[];
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +60,7 @@ export interface TransactionCreate {
   amount: number;
   description?: string;
   transaction_date: string;
+  tag_ids?: number[];
 }
 
 export interface TransactionUpdate {
@@ -57,6 +69,7 @@ export interface TransactionUpdate {
   amount?: number;
   description?: string;
   transaction_date?: string;
+  tag_ids?: number[];
 }
 
 export interface CategoryCreate {
@@ -149,16 +162,18 @@ export interface BudgetStatus {
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getToken();
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
   console.log(`=== API 호출: ${endpoint} ===`);
+  console.log('전체 URL:', fullUrl);
   console.log('토큰 존재 여부:', token ? '있음' : '없음');
   if (token) {
     console.log('토큰 값 (처음 20자):', token.substring(0, 20) + '...');
     console.log('토큰 길이:', token.length);
   }
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options?.headers,
+    ...(options?.headers as Record<string, string>),
   };
   
   if (token) {
@@ -206,14 +221,27 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
         }
       }
       
+      // 404 오류인 경우 상세 로그 출력
+      if (response.status === 404) {
+        console.error('=== 404 Not Found 오류 ===');
+        console.error('API 엔드포인트:', endpoint);
+        console.error('전체 URL:', `${API_BASE_URL}${endpoint}`);
+        console.error('백엔드 서버 상태 확인 필요');
+      }
+      
       // 422 오류인 경우 상세 로그 출력 (유효성 검증 오류)
       if (response.status === 422) {
         console.error('=== 422 Unprocessable Content 오류 ===');
         console.error('API 엔드포인트:', endpoint);
-        console.error('요청 본문:', options.body);
+        console.error('요청 본문:', options?.body);
       }
       
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = await response.json().catch(() => ({ detail: `HTTP ${response.status} error` }));
+      
+      // 404 오류의 경우 더 명확한 메시지
+      if (response.status === 404) {
+        throw new Error(`엔드포인트를 찾을 수 없습니다: ${endpoint}. 백엔드 서버가 실행 중인지 확인해주세요.`);
+      }
       
       // 422 오류의 경우 FastAPI의 상세한 유효성 검증 오류 메시지 표시
       if (response.status === 422 && error.detail && Array.isArray(error.detail)) {
@@ -621,6 +649,14 @@ export const statisticsAPI = {
     return fetchAPI<CategoryStatistics[]>(`/api/statistics/by-category?${queryParams.toString()}`);
   },
 
+  getByTag: (year?: number, month?: number, type: 'income' | 'expense' = 'expense') => {
+    const queryParams = new URLSearchParams();
+    if (year) queryParams.append('year', year.toString());
+    if (month) queryParams.append('month', month.toString());
+    queryParams.append('type', type);
+    return fetchAPI<TagStatistics[]>(`/api/statistics/by-tag?${queryParams.toString()}`);
+  },
+
   predictExpense: (monthsBack?: number) => {
     const queryParams = new URLSearchParams();
     if (monthsBack) queryParams.append('months_back', monthsBack.toString());
@@ -885,5 +921,304 @@ export const reportsAPI = {
     } else {
       return fetchAPI<MonthlyReportResponse>(`/api/reports/monthly?${queryParams.toString()}`);
     }
+  },
+};
+
+// Recurring Transaction Interfaces
+export interface RecurringTransaction {
+  id: number;
+  user_id: number;
+  category_id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description?: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  day_of_month?: number;
+  day_of_week?: number;
+  start_date: string;
+  end_date?: string;
+  is_active: boolean;
+  last_generated_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecurringTransactionCreate {
+  category_id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description?: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  day_of_month?: number;
+  day_of_week?: number;
+  start_date: string;
+  end_date?: string;
+  is_active?: boolean;
+}
+
+export interface RecurringTransactionUpdate {
+  category_id?: number;
+  type?: 'income' | 'expense';
+  amount?: number;
+  description?: string;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  day_of_month?: number;
+  day_of_week?: number;
+  start_date?: string;
+  end_date?: string;
+  is_active?: boolean;
+}
+
+// Recurring Transaction API
+export const recurringTransactionAPI = {
+  getAll: async (isActive?: boolean): Promise<RecurringTransaction[]> => {
+    const queryParams = new URLSearchParams();
+    if (isActive !== undefined) {
+      queryParams.append('is_active', isActive.toString());
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<RecurringTransaction[]>(`/api/recurring-transactions${query}`);
+  },
+
+  getById: async (id: number): Promise<RecurringTransaction> => {
+    return fetchAPI<RecurringTransaction>(`/api/recurring-transactions/${id}`);
+  },
+
+  create: async (data: RecurringTransactionCreate): Promise<RecurringTransaction> => {
+    return fetchAPI<RecurringTransaction>('/api/recurring-transactions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: RecurringTransactionUpdate): Promise<RecurringTransaction> => {
+    return fetchAPI<RecurringTransaction>(`/api/recurring-transactions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return fetchAPI<void>(`/api/recurring-transactions/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  generate: async (targetDate?: string): Promise<{ message: string; count: number; transactions: Transaction[] }> => {
+    const queryParams = new URLSearchParams();
+    if (targetDate) {
+      queryParams.append('target_date', targetDate);
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<{ message: string; count: number; transactions: Transaction[] }>(`/api/recurring-transactions/generate${query}`, {
+      method: 'POST',
+    });
+  },
+};
+
+// Tag Interfaces
+export interface TagCreate {
+  name: string;
+  color?: string;
+}
+
+export interface TagUpdate {
+  name?: string;
+  color?: string;
+}
+
+export interface TagStatistics {
+  tag_id: number;
+  tag_name: string;
+  tag_color?: string;
+  total: number;
+  count: number;
+}
+
+// Tag API
+export const tagAPI = {
+  getAll: async (withCount: boolean = false): Promise<Tag[]> => {
+    const queryParams = new URLSearchParams();
+    if (withCount) {
+      queryParams.append('with_count', 'true');
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<Tag[]>(`/api/tags${query}`);
+  },
+
+  getById: async (id: number): Promise<Tag> => {
+    return fetchAPI<Tag>(`/api/tags/${id}`);
+  },
+
+  create: async (data: TagCreate): Promise<Tag> => {
+    return fetchAPI<Tag>('/api/tags', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: TagUpdate): Promise<Tag> => {
+    return fetchAPI<Tag>(`/api/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return fetchAPI<void>(`/api/tags/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Backup API
+export const backupAPI = {
+  export: async (): Promise<Blob> => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/api/backup/export`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.blob();
+  },
+
+  import: async (file: File): Promise<{ message: string; imported: Record<string, number> }> => {
+    const token = getToken();
+    const fileContent = await file.text();
+    
+    const response = await fetch(`${API_BASE_URL}/api/backup/import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+      body: fileContent,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
+};
+
+// Transaction Template Interfaces
+export interface TransactionTemplate {
+  id: number;
+  user_id: number;
+  name: string;
+  category_id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionTemplateCreate {
+  name: string;
+  category_id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description?: string;
+}
+
+export interface TransactionTemplateUpdate {
+  name?: string;
+  category_id?: number;
+  type?: 'income' | 'expense';
+  amount?: number;
+  description?: string;
+}
+
+// Transaction Template API
+export const transactionTemplateAPI = {
+  getAll: async (): Promise<TransactionTemplate[]> => {
+    return fetchAPI<TransactionTemplate[]>('/api/transaction-templates');
+  },
+
+  getById: async (id: number): Promise<TransactionTemplate> => {
+    return fetchAPI<TransactionTemplate>(`/api/transaction-templates/${id}`);
+  },
+
+  create: async (data: TransactionTemplateCreate): Promise<TransactionTemplate> => {
+    return fetchAPI<TransactionTemplate>('/api/transaction-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: TransactionTemplateUpdate): Promise<TransactionTemplate> => {
+    return fetchAPI<TransactionTemplate>(`/api/transaction-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return fetchAPI<void>(`/api/transaction-templates/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Transaction Attachment Interfaces
+export interface TransactionAttachment {
+  id: number;
+  transaction_id: number;
+  user_id: number;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
+// Transaction Attachment API
+export const transactionAttachmentAPI = {
+  getByTransaction: async (transactionId: number): Promise<TransactionAttachment[]> => {
+    return fetchAPI<TransactionAttachment[]>(`/api/transaction-attachments/transaction/${transactionId}`);
+  },
+
+  upload: async (transactionId: number, file: File): Promise<TransactionAttachment> => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/transaction-attachments/transaction/${transactionId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
+
+  download: (attachmentId: number): string => {
+    const token = getToken();
+    return `${API_BASE_URL}/api/transaction-attachments/${attachmentId}/download?token=${token || ''}`;
+  },
+
+  delete: async (attachmentId: number): Promise<void> => {
+    return fetchAPI<void>(`/api/transaction-attachments/${attachmentId}`, {
+      method: 'DELETE',
+    });
   },
 };

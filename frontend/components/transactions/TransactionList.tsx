@@ -8,8 +8,9 @@ import {
   TransactionUpdate,
   categoryAPI,
   Category,
+  tagAPI,
 } from '@/lib/api';
-import { Download, Upload, Trash2, Plus } from 'lucide-react';
+import { Download, Upload, Trash2, Plus, Copy, Edit2, CheckSquare, Square } from 'lucide-react';
 import { TransactionForm } from './TransactionForm';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -33,6 +34,9 @@ export const TransactionList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
 
   // 필터 상태
   const [searchValue, setSearchValue] = useState('');
@@ -109,6 +113,39 @@ export const TransactionList: React.FC = () => {
     setShowForm(true);
   };
 
+  const handleDuplicate = (transaction: Transaction) => {
+    // 거래를 복제하여 새로 생성 (거래일은 오늘로 설정)
+    const duplicatedTransaction: Transaction = {
+      ...transaction,
+      id: 0, // 새로 생성될 거래이므로 ID는 0
+      transaction_date: new Date().toISOString().split('T')[0], // 오늘 날짜
+      created_at: '',
+      updated_at: '',
+    };
+    setEditingTransaction(undefined); // 새 거래로 처리
+    // 폼에 데이터 미리 채우기 위해 transaction 대신 duplicatedTransaction을 사용
+    // 하지만 TransactionForm은 transaction이 있으면 수정 모드이므로, 
+    // 복제된 데이터를 새로 생성하도록 처리
+    const newTransaction: TransactionCreate = {
+      category_id: transaction.category_id,
+      type: transaction.type,
+      amount: Number(transaction.amount),
+      description: transaction.description ? `${transaction.description} (복제)` : undefined,
+      transaction_date: new Date().toISOString().split('T')[0],
+    };
+    
+    // 직접 API 호출하여 생성
+    transactionAPI.create(newTransaction)
+      .then(() => {
+        loadTransactions();
+        alert('거래가 복제되었습니다.');
+      })
+      .catch((error) => {
+        console.error('거래 복제 실패:', error);
+        alert(`거래 복제 실패: ${error.message}`);
+      });
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
     try {
@@ -117,6 +154,60 @@ export const TransactionList: React.FC = () => {
     } catch (error) {
       console.error('거래 내역 삭제 실패:', error);
       alert('삭제에 실패했습니다.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`선택한 ${selectedIds.size}개의 거래를 삭제하시겠습니까?`)) return;
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => transactionAPI.delete(id)));
+      await loadTransactions();
+      setSelectedIds(new Set());
+      setBulkEditMode(false);
+      alert(`${selectedIds.size}개의 거래가 삭제되었습니다.`);
+    } catch (error) {
+      console.error('일괄 삭제 실패:', error);
+      alert('일괄 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleBulkEdit = () => {
+    // 일괄 수정 모달 표시
+    setShowBulkEditModal(true);
+  };
+
+  const handleBulkEditSubmit = async (data: { category_id?: number; tag_ids?: number[] }) => {
+    try {
+      const updates = Array.from(selectedIds).map(id => 
+        transactionAPI.update(id, data as any)
+      );
+      await Promise.all(updates);
+      await loadTransactions();
+      setSelectedIds(new Set());
+      setBulkEditMode(false);
+      setShowBulkEditModal(false);
+      alert(`${selectedIds.size}개의 거래가 수정되었습니다.`);
+    } catch (error) {
+      console.error('일괄 수정 실패:', error);
+      alert('일괄 수정에 실패했습니다.');
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredAndSortedTransactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredAndSortedTransactions.map(t => t.id)));
     }
   };
 
@@ -429,16 +520,72 @@ export const TransactionList: React.FC = () => {
           >
             <Trash2 className="w-4 h-4" />
           </Button>
-          <Button
-            size="md"
-            onClick={() => {
-              setEditingTransaction(undefined);
-              setShowForm(true);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            거래 추가
-          </Button>
+          {bulkEditMode ? (
+            <>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  if (selectedIds.size === 0) {
+                    alert('수정할 거래를 선택해주세요.');
+                    return;
+                  }
+                  // 일괄 수정 모달 표시
+                  handleBulkEdit();
+                }}
+                disabled={selectedIds.size === 0}
+              >
+                <Edit2 className="w-4 h-4" />
+                일괄 수정 ({selectedIds.size})
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                onClick={() => {
+                  if (selectedIds.size === 0) {
+                    alert('삭제할 거래를 선택해주세요.');
+                    return;
+                  }
+                  handleBulkDelete();
+                }}
+                disabled={selectedIds.size === 0}
+              >
+                <Trash2 className="w-4 h-4" />
+                일괄 삭제 ({selectedIds.size})
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setBulkEditMode(false);
+                  setSelectedIds(new Set());
+                }}
+              >
+                취소
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setBulkEditMode(true)}
+              >
+                <CheckSquare className="w-4 h-4" />
+                일괄 선택
+              </Button>
+              <Button
+                size="md"
+                onClick={() => {
+                  setEditingTransaction(undefined);
+                  setShowForm(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                거래 추가
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -473,6 +620,20 @@ export const TransactionList: React.FC = () => {
           <div className="overflow-x-auto">
             <Table>
             <TableHeader>
+              {bulkEditMode && (
+                <TableHeaderCell>
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center justify-center"
+                  >
+                    {selectedIds.size === filteredAndSortedTransactions.length ? (
+                      <CheckSquare className="w-4 h-4" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                </TableHeaderCell>
+              )}
               <TableHeaderCell
                 sortable
                 sortDirection={sortField === 'date' ? sortDirection : null}
@@ -512,6 +673,20 @@ export const TransactionList: React.FC = () => {
 
                 return (
                   <TableRow key={transaction.id} hover>
+                    {bulkEditMode && (
+                      <TableCell>
+                        <button
+                          onClick={() => toggleSelect(transaction.id)}
+                          className="flex items-center justify-center"
+                        >
+                          {selectedIds.has(transaction.id) ? (
+                            <CheckSquare className="w-4 h-4 text-blue-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                      </TableCell>
+                    )}
                     <TableCell className="whitespace-nowrap dark:text-gray-300">
                       {new Date(transaction.transaction_date).toLocaleDateString('ko-KR', {
                         year: 'numeric',
@@ -531,19 +706,44 @@ export const TransactionList: React.FC = () => {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getCategoryColor(transaction.category_id) }}
-                        />
-                        <span className="text-sm dark:text-gray-300">
-                          {searchValue
-                            ? highlightText(
-                                getCategoryName(transaction.category_id),
-                                searchValue
-                              )
-                            : getCategoryName(transaction.category_id)}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: getCategoryColor(transaction.category_id) }}
+                          />
+                          <span className="text-sm dark:text-gray-300">
+                            {searchValue
+                              ? highlightText(
+                                  getCategoryName(transaction.category_id),
+                                  searchValue
+                                )
+                              : getCategoryName(transaction.category_id)}
+                          </span>
+                        </div>
+                        {transaction.tags && transaction.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {transaction.tags.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded border"
+                                style={{
+                                  backgroundColor: tag.color ? `${tag.color}20` : 'transparent',
+                                  borderColor: tag.color || '#e5e7eb',
+                                  color: tag.color || '#6b7280',
+                                }}
+                              >
+                                {tag.color && (
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                )}
+                                {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xs dark:text-gray-300">
@@ -562,6 +762,15 @@ export const TransactionList: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleDuplicate(transaction)}
+                          className="min-w-[40px]"
+                          title="복제"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="secondary"
                           size="sm"

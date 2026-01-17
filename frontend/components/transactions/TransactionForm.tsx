@@ -8,12 +8,18 @@ import {
   categoryAPI, 
   Category,
   aiAPI,
-  CategoryClassificationResponse
+  CategoryClassificationResponse,
+  tagAPI,
+  Tag,
+  transactionTemplateAPI,
+  TransactionTemplate,
+  transactionAttachmentAPI,
+  TransactionAttachment
 } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CategorySelect } from '@/components/categories/CategorySelect';
-import { Zap } from 'lucide-react';
+import { Zap, Paperclip, X } from 'lucide-react';
 
 interface TransactionFormProps {
   transaction?: Transaction;
@@ -63,6 +69,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [suggestedCategory, setSuggestedCategory] = useState<CategoryClassificationResponse | null>(null);
   const [naturalLanguageText, setNaturalLanguageText] = useState<string>('');
   const [showNaturalLanguage, setShowNaturalLanguage] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(transaction?.tags?.map(t => t.id) || []);
+  const [templates, setTemplates] = useState<TransactionTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<number | undefined>();
+  const [attachments, setAttachments] = useState<TransactionAttachment[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // 자동 카테고리 제안
   const suggestCategory = useCallback(async (desc: string) => {
@@ -118,6 +130,62 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     }
   };
 
+  // 태그 및 템플릿 로드
+  useEffect(() => {
+    tagAPI.getAll().then(setTags).catch(console.error);
+    transactionTemplateAPI.getAll().then(setTemplates).catch(console.error);
+  }, []);
+
+  // 템플릿 선택 시 폼 자동 채우기
+  useEffect(() => {
+    if (selectedTemplate && !transaction) {
+      const template = templates.find(t => t.id === selectedTemplate);
+      if (template) {
+        setCategoryId(template.category_id);
+        setType(template.type);
+        setAmount(template.amount.toString());
+        setDescription(template.description || '');
+      }
+    }
+  }, [selectedTemplate, templates, transaction]);
+
+  // 거래 첨부파일 로드
+  useEffect(() => {
+    if (transaction?.id) {
+      transactionAttachmentAPI.getByTransaction(transaction.id)
+        .then(setAttachments)
+        .catch(console.error);
+    } else {
+      setAttachments([]);
+    }
+  }, [transaction?.id]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !transaction?.id) return;
+
+    try {
+      setUploadingFile(true);
+      const attachment = await transactionAttachmentAPI.upload(transaction.id, file);
+      setAttachments([...attachments, attachment]);
+    } catch (error: any) {
+      alert(`파일 업로드 실패: ${error.message}`);
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleFileDelete = async (attachmentId: number) => {
+    if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
+    try {
+      await transactionAttachmentAPI.delete(attachmentId);
+      setAttachments(attachments.filter(a => a.id !== attachmentId));
+    } catch (error: any) {
+      alert(`파일 삭제 실패: ${error.message}`);
+    }
+  };
+
   // 설명 변경 시 자동 카테고리 제안
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -154,6 +222,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         amount: numericAmount,
         description: description || undefined,
         transaction_date: transactionDate,
+        tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       };
 
       await onSubmit(data);
@@ -166,8 +235,29 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* 템플릿 선택 */}
+      {!transaction && templates.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            템플릿에서 선택 (선택사항)
+          </label>
+          <select
+            value={selectedTemplate || ''}
+            onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : undefined)}
+            className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-2 border-gray-200 dark:border-gray-600 rounded-lg"
+          >
+            <option value="">템플릿 선택</option>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name} ({template.type === 'income' ? '수입' : '지출'} - ₩{Number(template.amount).toLocaleString()})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">유형</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">유형</label>
         <div className="flex gap-4">
           <label className="flex items-center">
             <input
@@ -274,6 +364,96 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
+
+      {/* 태그 선택 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">태그 (선택사항)</label>
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag) => {
+            const isSelected = selectedTagIds.includes(tag.id);
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() => {
+                  if (isSelected) {
+                    setSelectedTagIds(selectedTagIds.filter(id => id !== tag.id));
+                  } else {
+                    setSelectedTagIds([...selectedTagIds, tag.id]);
+                  }
+                }}
+                className={`px-3 py-1.5 text-xs rounded-md border transition-colors min-h-[28px] flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                {tag.color && (
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                )}
+                {tag.name}
+              </button>
+            );
+          })}
+          {tags.length === 0 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">태그가 없습니다. 태그 관리 페이지에서 태그를 추가하세요.</span>
+          )}
+        </div>
+      </div>
+
+      {/* 첨부파일 (수정 모드에서만) */}
+      {transaction && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            첨부파일
+          </label>
+          <div className="space-y-2">
+            {attachments.map((attachment) => (
+              <div key={attachment.id} className="flex items-center justify-between p-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                <a
+                  href={transactionAttachmentAPI.download(attachment.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2"
+                >
+                  <Paperclip className="w-4 h-4" />
+                  <span>{attachment.file_name}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">({(attachment.file_size / 1024).toFixed(1)} KB)</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleFileDelete(attachment.id)}
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1"
+                  title="삭제"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <label className="cursor-pointer inline-block">
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                disabled={uploadingFile}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={uploadingFile}
+                as="span"
+              >
+                <Paperclip className="w-4 h-4" />
+                {uploadingFile ? '업로드 중...' : '파일 추가'}
+              </Button>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* 자동 카테고리 제안 */}
       {suggestedCategory && suggestedCategory.category_id && !transaction && (

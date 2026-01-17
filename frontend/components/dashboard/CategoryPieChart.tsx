@@ -19,6 +19,7 @@ interface ChartData {
   color: string;
   count: number;
   categoryId: number;
+  [key: string]: string | number;
 }
 
 export const CategoryPieChart: React.FC = () => {
@@ -97,7 +98,9 @@ export const CategoryPieChart: React.FC = () => {
   const COLORS = chartData.map((item) => item.color);
 
   const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
+    if (index !== undefined) {
+      setActiveIndex(index);
+    }
   };
 
   const onPieLeave = () => {
@@ -282,7 +285,6 @@ export const CategoryPieChart: React.FC = () => {
       <ResponsiveContainer width="100%" height={280}>
         <PieChart>
           <Pie
-            activeIndex={activeIndex ?? undefined}
             activeShape={renderActiveShape}
             data={chartData}
             cx="50%"

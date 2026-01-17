@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 from typing import List, Optional
 from datetime import date
-from app.models import Transaction, Category
+from app.models import Transaction, Category, Tag
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
 
 
@@ -67,10 +67,21 @@ def get_transactions(
 
 def create_transaction(db: Session, transaction: TransactionCreate, user_id: int) -> Transaction:
     """거래 내역 생성"""
-    transaction_data = transaction.model_dump()
+    transaction_data = transaction.model_dump(exclude={'tag_ids'})
     transaction_data['user_id'] = user_id
     db_transaction = Transaction(**transaction_data)
     db.add(db_transaction)
+    
+    # 태그 추가
+    if transaction.tag_ids:
+        tags = db.query(Tag).filter(
+            and_(
+                Tag.id.in_(transaction.tag_ids),
+                Tag.user_id == user_id
+            )
+        ).all()
+        db_transaction.tags = tags
+    
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
@@ -87,9 +98,23 @@ def update_transaction(
     if not db_transaction:
         return None
     
-    update_data = transaction_update.model_dump(exclude_unset=True)
+    update_data = transaction_update.model_dump(exclude_unset=True, exclude={'tag_ids'})
     for field, value in update_data.items():
         setattr(db_transaction, field, value)
+    
+    # 태그 업데이트
+    if 'tag_ids' in transaction_update.model_dump(exclude_unset=True):
+        if transaction_update.tag_ids is not None:
+            tags = db.query(Tag).filter(
+                and_(
+                    Tag.id.in_(transaction_update.tag_ids),
+                    Tag.user_id == user_id
+                )
+            ).all()
+            db_transaction.tags = tags
+        else:
+            # tag_ids가 빈 리스트로 전달된 경우 모든 태그 제거
+            db_transaction.tags = []
     
     db.commit()
     db.refresh(db_transaction)

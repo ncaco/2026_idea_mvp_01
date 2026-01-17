@@ -1,94 +1,107 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, extract
-from typing import List, Optional
-from datetime import date, datetime
+from typing import Optional
+from datetime import date
 from app.database import get_db
-from app.models import Transaction, Category, User
 from app.core.security import get_current_user
+from app.models import User
+from app.services import statistics_service, tag_service
+from app.schemas.statistics import MonthlyStatistics, CategoryStatistics
 
 router = APIRouter()
 
 
-@router.get("/monthly")
+@router.get("/monthly", response_model=MonthlyStatistics)
 def get_monthly_statistics(
     year: Optional[int] = Query(None),
-    month: Optional[int] = Query(None, ge=1, le=12),
+    month: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """월별 수입/지출 합계"""
-    query = db.query(
-        Transaction.type,
-        func.sum(Transaction.amount).label("total")
-    ).filter(Transaction.user_id == current_user.id)
+    """월별 통계 조회"""
+    if year is None or month is None:
+        now = date.today()
+        year = year or now.year
+        month = month or now.month
     
-    if year:
-        query = query.filter(extract("year", Transaction.transaction_date) == year)
-    if month:
-        query = query.filter(extract("month", Transaction.transaction_date) == month)
-    
-    results = query.group_by(Transaction.type).all()
-    
-    income = 0
-    expense = 0
-    
-    for result in results:
-        if result.type == "income":
-            income = float(result.total) if result.total else 0
-        elif result.type == "expense":
-            expense = float(result.total) if result.total else 0
-    
-    return {
-        "income": income,
-        "expense": expense,
-        "balance": income - expense,
-        "year": year,
-        "month": month
-    }
+    return statistics_service.get_monthly_statistics(db, current_user.id, year, month)
 
 
-@router.get("/by-category")
+@router.get("/by-category", response_model=list[CategoryStatistics])
 def get_category_statistics(
     year: Optional[int] = Query(None),
-    month: Optional[int] = Query(None, ge=1, le=12),
+    month: Optional[int] = Query(None),
     type: str = Query("expense", regex="^(income|expense)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """카테고리별 지출/수입 통계"""
-    query = db.query(
-        Category.id,
-        Category.name,
-        Category.color,
-        func.sum(Transaction.amount).label("total"),
-        func.count(Transaction.id).label("count")
-    ).join(
-        Transaction, Category.id == Transaction.category_id
-    ).filter(
-        and_(
-            Transaction.user_id == current_user.id,
-            Transaction.type == type
-        )
-    )
+    """카테고리별 통계 조회"""
+    if year is None or month is None:
+        now = date.today()
+        year = year or now.year
+        month = month or now.month
     
-    if year:
-        query = query.filter(extract("year", Transaction.transaction_date) == year)
-    if month:
-        query = query.filter(extract("month", Transaction.transaction_date) == month)
+    return statistics_service.get_category_statistics(db, current_user.id, year, month, type)
+
+
+@router.get("/by-tag")
+def get_tag_statistics(
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
+    type: str = Query("expense", regex="^(income|expense)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """태그별 통계 조회"""
+    if year is None or month is None:
+        now = date.today()
+        year = year or now.year
+        month = month or now.month
     
-    results = query.group_by(Category.id, Category.name, Category.color).all()
+    # 태그 목록 조회
+    tags = tag_service.get_tags_with_count(db, current_user.id)
     
-    return [
-        {
-            "category_id": result.id,
-            "category_name": result.name,
-            "color": result.color,
-            "total": float(result.total) if result.total else 0,
-            "count": result.count
-        }
-        for result in results
-    ]
+    # 각 태그별 거래 통계 계산
+    from datetime import datetime
+    from app.models import Transaction, transaction_tag_association
+    from sqlalchemy import and_, func, extract
+    
+    start_date = datetime(year, month, 1).date()
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1).date()
+    else:
+        end_date = datetime(year, month + 1, 1).date()
+    
+    result = []
+    for tag_info in tags:
+        tag_id = tag_info['id']
+        
+        # 해당 태그가 붙은 거래 조회
+        transactions = db.query(Transaction).join(
+            transaction_tag_association
+        ).filter(
+            and_(
+                Transaction.user_id == current_user.id,
+                transaction_tag_association.c.tag_id == tag_id,
+                Transaction.type == type,
+                Transaction.transaction_date >= start_date,
+                Transaction.transaction_date < end_date
+            )
+        ).all()
+        
+        total = sum(float(t.amount) for t in transactions)
+        count = len(transactions)
+        
+        if count > 0:  # 거래가 있는 태그만 반환
+            result.append({
+                'tag_id': tag_id,
+                'tag_name': tag_info['name'],
+                'tag_color': tag_info.get('color'),
+                'total': total,
+                'count': count,
+            })
+    
+    return result
 
 
 @router.get("/predict-expense")
@@ -99,10 +112,4 @@ def predict_expense(
 ):
     """다음 달 지출 예측"""
     from app.services import prediction_service
-    
-    result = prediction_service.predict_next_month_expense(
-        db=db,
-        user_id=current_user.id,
-        months_back=months_back
-    )
-    return result
+    return prediction_service.predict_next_month_expense(db, current_user.id, months_back)

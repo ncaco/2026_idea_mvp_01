@@ -20,6 +20,8 @@ class Transaction(Base):
     # Relationships
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
+    tags = relationship("Tag", secondary="transaction_tags", back_populates="transactions")
+    attachments = relationship("TransactionAttachment", back_populates="transaction", cascade="all, delete-orphan")
 
     # 인덱스
     __table_args__ = (

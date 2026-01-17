@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.routers import transactions, categories, statistics, auth, budgets, ai, reports
+from app.routers import transactions, categories, statistics, auth, budgets, ai, reports, recurring_transactions, tags, backup, transaction_templates, transaction_attachments
 
 # 환경 변수 로드
 load_dotenv()
@@ -25,6 +25,11 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["statistic
 app.include_router(budgets.router, prefix="/api/budgets", tags=["budgets"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
+app.include_router(recurring_transactions.router, prefix="/api/recurring-transactions", tags=["recurring-transactions"])
+app.include_router(tags.router, prefix="/api/tags", tags=["tags"])
+app.include_router(backup.router, prefix="/api/backup", tags=["backup"])
+app.include_router(transaction_templates.router, prefix="/api/transaction-templates", tags=["transaction-templates"])
+app.include_router(transaction_attachments.router, prefix="/api/transaction-attachments", tags=["transaction-attachments"])
 
 
 @app.get("/")

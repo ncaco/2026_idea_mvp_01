@@ -4,6 +4,7 @@ import { MonthlyChart } from '@/components/dashboard/MonthlyChart';
 import { CategoryPieChart } from '@/components/dashboard/CategoryPieChart';
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
 import { PredictionChart } from '@/components/dashboard/PredictionChart';
+import { BudgetAlerts } from '@/components/dashboard/BudgetAlerts';
 import { Button } from '@/components/ui/Button';
 import { Plus, Settings } from 'lucide-react';
 import Link from 'next/link';
@@ -33,6 +34,9 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* 예산 초과 알림 */}
+        <BudgetAlerts />
 
         {/* 요약 카드 */}
         <SummaryCards />

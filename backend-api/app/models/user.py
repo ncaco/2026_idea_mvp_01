@@ -18,3 +18,6 @@ class User(Base):
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     budgets = relationship("Budget", back_populates="user", cascade="all, delete-orphan")
+    recurring_transactions = relationship("RecurringTransaction", back_populates="user", cascade="all, delete-orphan")
+    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
+    transaction_templates = relationship("TransactionTemplate", back_populates="user", cascade="all, delete-orphan")

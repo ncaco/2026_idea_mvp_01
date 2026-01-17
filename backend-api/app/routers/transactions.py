@@ -14,17 +14,31 @@ from app.models import User, Category
 router = APIRouter()
 
 
-@router.post("", response_model=Transaction, status_code=201)
+@router.post("", status_code=201)
 def create_transaction(
     transaction: TransactionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """거래 내역 생성"""
-    return transaction_service.create_transaction(db, transaction, current_user.id)
+    """거래 내역 생성 (태그 정보 포함)"""
+    created = transaction_service.create_transaction(db, transaction, current_user.id)
+    
+    # 태그 정보 포함하여 반환
+    return {
+        'id': created.id,
+        'user_id': created.user_id,
+        'category_id': created.category_id,
+        'type': created.type,
+        'amount': float(created.amount),
+        'description': created.description,
+        'transaction_date': created.transaction_date.isoformat(),
+        'created_at': created.created_at.isoformat(),
+        'updated_at': created.updated_at.isoformat(),
+        'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in created.tags] if created.tags else []
+    }
 
 
-@router.get("", response_model=List[Transaction])
+@router.get("")
 def get_transactions(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -38,8 +52,8 @@ def get_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """거래 내역 목록 조회 (검색 및 필터링 지원)"""
-    return transaction_service.get_transactions(
+    """거래 내역 목록 조회 (검색 및 필터링 지원, 태그 정보 포함)"""
+    transactions = transaction_service.get_transactions(
         db=db,
         user_id=current_user.id,
         skip=skip,
@@ -52,35 +66,79 @@ def get_transactions(
         min_amount=min_amount,
         max_amount=max_amount
     )
+    
+    # 태그 정보 포함하여 반환
+    result = []
+    for transaction in transactions:
+        result.append({
+            'id': transaction.id,
+            'user_id': transaction.user_id,
+            'category_id': transaction.category_id,
+            'type': transaction.type,
+            'amount': float(transaction.amount),
+            'description': transaction.description,
+            'transaction_date': transaction.transaction_date.isoformat(),
+            'created_at': transaction.created_at.isoformat(),
+            'updated_at': transaction.updated_at.isoformat(),
+            'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in transaction.tags] if transaction.tags else []
+        })
+    
+    return result
 
 
-@router.get("/{transaction_id}", response_model=Transaction)
+@router.get("/{transaction_id}")
 def get_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """거래 내역 상세 조회"""
+    """거래 내역 상세 조회 (태그 정보 포함)"""
     transaction = transaction_service.get_transaction(db, transaction_id, current_user.id)
     if not transaction:
         raise HTTPException(status_code=404, detail="거래 내역을 찾을 수 없습니다")
-    return transaction
+    
+    # 태그 정보 포함하여 반환
+    return {
+        'id': transaction.id,
+        'user_id': transaction.user_id,
+        'category_id': transaction.category_id,
+        'type': transaction.type,
+        'amount': float(transaction.amount),
+        'description': transaction.description,
+        'transaction_date': transaction.transaction_date.isoformat(),
+        'created_at': transaction.created_at.isoformat(),
+        'updated_at': transaction.updated_at.isoformat(),
+        'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in transaction.tags] if transaction.tags else []
+    }
 
 
-@router.put("/{transaction_id}", response_model=Transaction)
+@router.put("/{transaction_id}")
 def update_transaction(
     transaction_id: int,
     transaction_update: TransactionUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """거래 내역 수정"""
+    """거래 내역 수정 (태그 정보 포함)"""
     transaction = transaction_service.update_transaction(
         db, transaction_id, current_user.id, transaction_update
     )
     if not transaction:
         raise HTTPException(status_code=404, detail="거래 내역을 찾을 수 없습니다")
-    return transaction
+    
+    # 태그 정보 포함하여 반환
+    return {
+        'id': transaction.id,
+        'user_id': transaction.user_id,
+        'category_id': transaction.category_id,
+        'type': transaction.type,
+        'amount': float(transaction.amount),
+        'description': transaction.description,
+        'transaction_date': transaction.transaction_date.isoformat(),
+        'created_at': transaction.created_at.isoformat(),
+        'updated_at': transaction.updated_at.isoformat(),
+        'tags': [{'id': tag.id, 'name': tag.name, 'color': tag.color} for tag in transaction.tags] if transaction.tags else []
+    }
 
 
 @router.delete("/{transaction_id}", status_code=204)

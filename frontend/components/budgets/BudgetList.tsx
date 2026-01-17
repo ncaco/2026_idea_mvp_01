@@ -10,7 +10,7 @@ import {
   Category,
   BudgetStatus,
 } from '@/lib/api';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { BudgetForm } from './BudgetForm';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -146,7 +146,19 @@ export const BudgetList: React.FC = () => {
         </div>
       </div>
 
-      <Card compact className="border-2 border-gray-200 shadow-sm">
+      {/* 예산 초과 알림 */}
+      {budgetStatuses.filter(s => s.is_over_budget).length > 0 && (
+        <Card compact className="border-2 border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <span className="font-semibold text-red-900 dark:text-red-300">
+              {budgetStatuses.filter(s => s.is_over_budget).length}개의 예산이 초과되었습니다.
+            </span>
+          </div>
+        </Card>
+      )}
+
+      <Card compact className="border-2 border-gray-200 dark:border-gray-700 shadow-sm">
         {loading ? (
           <div className="text-center py-12 text-gray-500">
             <div className="skeleton w-full h-64 rounded-xl" />
@@ -167,7 +179,11 @@ export const BudgetList: React.FC = () => {
               return (
                 <div
                   key={budget.id}
-                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors bg-white dark:bg-gray-800"
+                  className={`p-4 border-2 rounded-lg transition-colors ${
+                    isOver
+                      ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-white dark:bg-gray-800'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>

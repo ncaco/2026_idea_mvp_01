@@ -110,7 +110,7 @@ export const SpendingPatterns: React.FC = () => {
                     />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number) => `₩${value.toLocaleString()}`}
+                      formatter={(value: number | undefined) => value !== undefined ? `₩${value.toLocaleString()}` : ''}
                     />
                     <Legend />
                     <Bar dataKey="total" fill="#8884d8" name="지출 금액" />
@@ -133,7 +133,7 @@ export const SpendingPatterns: React.FC = () => {
                     <XAxis dataKey="weekday_name" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number) => `₩${value.toLocaleString()}`}
+                      formatter={(value: number | undefined) => value !== undefined ? `₩${value.toLocaleString()}` : ''}
                     />
                     <Legend />
                     <Bar dataKey="avg_amount" fill="#82ca9d" name="평균 지출" />

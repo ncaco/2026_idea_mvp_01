@@ -67,8 +67,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: '/', label: '대시보드' },
     { href: '/transactions', label: '거래 내역' },
     { href: '/categories', label: '카테고리' },
+    { href: '/tags', label: '태그' },
     { href: '/budgets', label: '예산 관리' },
+    { href: '/recurring-transactions', label: '반복 거래' },
+    { href: '/templates', label: '템플릿' },
     { href: '/analytics', label: '패턴 분석' },
+    { href: '/statistics/yearly', label: '연도별 통계' },
+    { href: '/settings', label: '설정' },
   ];
 
   return (
