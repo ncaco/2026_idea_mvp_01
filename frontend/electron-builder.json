@@ -2,13 +2,20 @@
   "appId": "com.accountbook.app",
   "productName": "AI 가계부",
   "directories": {
-    "output": "dist"
+    "output": "dist",
+    "buildResources": "build"
   },
   "files": [
     "out/**/*",
     "electron/**/*",
-    "package.json",
-    "node_modules/**/*"
+    "package.json"
+  ],
+  "extraFiles": [
+    {
+      "from": "out",
+      "to": "out",
+      "filter": ["**/*"]
+    }
   ],
   "win": {
     "target": [
@@ -21,6 +28,13 @@
   },
   "nsis": {
     "oneClick": false,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "your-username",
+    "repo": "your-repo"
   }
 }

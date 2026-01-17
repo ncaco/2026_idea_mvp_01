@@ -68,8 +68,11 @@ export const TransactionList: React.FC = () => {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (typeFilter !== 'all') params.type = typeFilter;
-      if (selectedCategoryIds.length > 0) {
-        // 카테고리 필터는 클라이언트 측에서 처리
+      if (selectedCategoryIds.length === 1) {
+        params.category_id = selectedCategoryIds[0];
+      }
+      if (searchValue) {
+        params.search = searchValue;
       }
 
       const data = await transactionAPI.getAll(params);
@@ -83,7 +86,7 @@ export const TransactionList: React.FC = () => {
 
   useEffect(() => {
     loadTransactions();
-  }, [startDate, endDate, typeFilter]);
+  }, [startDate, endDate, typeFilter, searchValue, selectedCategoryIds]);
 
   const handleSubmit = async (data: TransactionCreate | TransactionUpdate) => {
     try {
@@ -186,22 +189,28 @@ export const TransactionList: React.FC = () => {
     setSelectedCategoryIds([]);
   };
 
+  // 검색어 하이라이트 함수
+  const highlightText = (text: string, searchTerm: string) => {
+    if (!searchTerm || !text) return text;
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
   // 필터링 및 정렬된 거래 내역
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = [...transactions];
 
-    // 검색 필터
-    if (searchValue) {
-      const searchLower = searchValue.toLowerCase();
-      filtered = filtered.filter(
-        (t) =>
-          t.description?.toLowerCase().includes(searchLower) ||
-          t.amount.toString().includes(searchValue)
-      );
-    }
-
-    // 카테고리 필터
-    if (selectedCategoryIds.length > 0) {
+    // 카테고리 필터 (서버에서 처리하지 않은 경우)
+    if (selectedCategoryIds.length > 1) {
       filtered = filtered.filter((t) => selectedCategoryIds.includes(t.category_id));
     }
 
@@ -268,6 +277,23 @@ export const TransactionList: React.FC = () => {
     }
   };
 
+  const handleExportCsv = async () => {
+    try {
+      const params: any = {};
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      if (selectedCategoryIds.length === 1) {
+        params.category_id = selectedCategoryIds[0];
+      }
+      
+      await transactionAPI.exportCsv(params);
+    } catch (error: any) {
+      console.error('CSV 다운로드 실패:', error);
+      alert(`CSV 다운로드 실패: ${error.message}`);
+    }
+  };
+
   const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -300,22 +326,55 @@ export const TransactionList: React.FC = () => {
     }
   };
 
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.csv')) {
+      alert('CSV 파일(.csv)만 업로드 가능합니다.');
+      return;
+    }
+    
+    if (!confirm('CSV 파일을 업로드하시겠습니까? 기존 데이터는 유지되고 새 데이터가 추가됩니다.')) {
+      return;
+    }
+    
+    try {
+      const result = await transactionAPI.importCsv(file);
+      alert(
+        `업로드 완료!\n성공: ${result.success}건\n실패: ${result.failed}건${
+          result.errors && result.errors.length > 0
+            ? `\n\n오류:\n${result.errors.slice(0, 5).join('\n')}`
+            : ''
+        }`
+      );
+      await loadTransactions();
+      // 파일 입력 초기화
+      event.target.value = '';
+    } catch (error: any) {
+      console.error('CSV 업로드 실패:', error);
+      alert(`CSV 업로드 실패: ${error.message}`);
+      event.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-1">거래 내역</h2>
-          <p className="text-sm text-gray-600">모든 거래 내역을 확인하고 관리하세요</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">거래 내역</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">모든 거래 내역을 확인하고 관리하세요</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <label htmlFor="excel-upload" className="cursor-pointer">
             <Button
               variant="secondary"
+              size="sm"
               as="span"
-              className="flex items-center justify-center p-2"
+              className="min-w-[40px]"
               title="엑셀 업로드"
             >
-              <Upload className="w-5 h-5" />
+              <Upload className="w-4 h-4" />
             </Button>
             <input
               id="excel-upload"
@@ -325,28 +384,57 @@ export const TransactionList: React.FC = () => {
               className="hidden"
             />
           </label>
+          <label htmlFor="csv-upload" className="cursor-pointer">
+            <Button
+              variant="secondary"
+              size="sm"
+              as="span"
+              className="min-w-[40px]"
+              title="CSV 업로드"
+            >
+              <Upload className="w-4 h-4" />
+            </Button>
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv"
+              onChange={handleImportCsv}
+              className="hidden"
+            />
+          </label>
           <Button
             variant="secondary"
+            size="sm"
             onClick={handleExportExcel}
-            className="flex items-center justify-center p-2"
+            className="min-w-[40px]"
             title="엑셀 다운로드"
           >
-            <Download className="w-5 h-5" />
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportCsv}
+            className="min-w-[40px]"
+            title="CSV 다운로드"
+          >
+            <Download className="w-4 h-4" />
           </Button>
           <Button
             variant="danger"
+            size="sm"
             onClick={handleDeleteAll}
-            className="flex items-center justify-center p-2"
+            className="min-w-[40px]"
             title="전체 삭제"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
           </Button>
           <Button
+            size="md"
             onClick={() => {
               setEditingTransaction(undefined);
               setShowForm(true);
             }}
-            className="flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             거래 추가
@@ -424,7 +512,7 @@ export const TransactionList: React.FC = () => {
 
                 return (
                   <TableRow key={transaction.id} hover>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap dark:text-gray-300">
                       {new Date(transaction.transaction_date).toLocaleDateString('ko-KR', {
                         year: 'numeric',
                         month: 'short',
@@ -433,10 +521,10 @@ export const TransactionList: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
+                        className={`px-2 py-1 text-xs rounded-full font-medium ${
                           isIncome
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                         }`}
                       >
                         {isIncome ? '수입' : '지출'}
@@ -448,13 +536,28 @@ export const TransactionList: React.FC = () => {
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: getCategoryColor(transaction.category_id) }}
                         />
-                        <span className="text-sm">{getCategoryName(transaction.category_id)}</span>
+                        <span className="text-sm dark:text-gray-300">
+                          {searchValue
+                            ? highlightText(
+                                getCategoryName(transaction.category_id),
+                                searchValue
+                              )
+                            : getCategoryName(transaction.category_id)}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {transaction.description || '-'}
+                    <TableCell className="max-w-xs dark:text-gray-300">
+                      {transaction.description ? (
+                        <span className="truncate block">
+                          {searchValue
+                            ? highlightText(transaction.description, searchValue)
+                            : transaction.description}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
-                    <TableCell className={`font-semibold ${amountColor}`}>
+                    <TableCell className={`font-semibold ${amountColor} dark:${isIncome ? 'text-green-400' : 'text-red-400'}`}>
                       {amountPrefix}₩{Number(transaction.amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
@@ -463,6 +566,7 @@ export const TransactionList: React.FC = () => {
                           variant="secondary"
                           size="sm"
                           onClick={() => handleEdit(transaction)}
+                          className="min-w-[60px]"
                         >
                           수정
                         </Button>
@@ -470,6 +574,7 @@ export const TransactionList: React.FC = () => {
                           variant="danger"
                           size="sm"
                           onClick={() => handleDelete(transaction.id)}
+                          className="min-w-[60px]"
                         >
                           삭제
                         </Button>
@@ -483,7 +588,7 @@ export const TransactionList: React.FC = () => {
           </div>
         )}
         {!loading && filteredAndSortedTransactions.length > 0 && (
-          <div className="mt-4 pt-4 border-t-2 border-gray-200 text-sm font-medium text-gray-700 text-center">
+          <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 text-center">
             총 {filteredAndSortedTransactions.length}건의 거래 내역
           </div>
         )}

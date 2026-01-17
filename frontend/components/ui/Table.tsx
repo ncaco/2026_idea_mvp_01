@@ -22,7 +22,7 @@ interface TableHeaderProps {
 
 export const TableHeader: React.FC<TableHeaderProps> = ({ children, className = '' }) => {
   return (
-    <thead className={`bg-gradient-to-r from-gray-50 to-gray-100 ${className}`}>
+    <thead className={`bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 ${className}`}>
       <tr>{children}</tr>
     </thead>
   );
@@ -45,8 +45,8 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({
 }) => {
   return (
     <th
-      className={`px-4 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider ${
-        sortable ? 'cursor-pointer hover:bg-gray-200 select-none transition-colors' : ''
+      className={`px-4 py-3.5 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider ${
+        sortable ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 select-none transition-colors' : ''
       } ${className}`}
       onClick={sortable ? onSort : undefined}
     >
@@ -70,7 +70,7 @@ interface TableBodyProps {
 }
 
 export const TableBody: React.FC<TableBodyProps> = ({ children, className = '' }) => {
-  return <tbody className={`bg-white divide-y divide-gray-200 ${className}`}>{children}</tbody>;
+  return <tbody className={`bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>{children}</tbody>;
 };
 
 interface TableRowProps {
@@ -104,5 +104,5 @@ interface TableCellProps {
 }
 
 export const TableCell: React.FC<TableCellProps> = ({ children, className = '' }) => {
-  return <td className={`px-4 py-3.5 text-sm text-gray-900 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3.5 text-sm text-gray-900 dark:text-gray-100 ${className}`}>{children}</td>;
 };

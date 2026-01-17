@@ -184,8 +184,8 @@ export const SummaryCards: React.FC = () => {
             className={`interactive hover:shadow-xl transition-all duration-300 border-2 ${card.borderColor} bg-gradient-to-br ${card.bgGradient} hover:scale-105`}
           >
             <div className="flex items-start justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-700">{card.title}</div>
-              <div className={`p-1.5 rounded-lg bg-white/60 ${card.iconColor}`}>
+              <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">{card.title}</div>
+              <div className={`p-1.5 rounded-lg bg-white/60 dark:bg-gray-800/60 ${card.iconColor}`}>
                 <Icon className="w-4 h-4" />
               </div>
             </div>
@@ -193,14 +193,14 @@ export const SummaryCards: React.FC = () => {
               ₩{Number(card.value || 0).toLocaleString()}
             </div>
             {card.trend && (
-              <div className="flex items-center gap-1.5 text-xs pt-2 border-t border-white/50">
+              <div className="flex items-center gap-1.5 text-xs pt-2 border-t border-white/50 dark:border-gray-700/50">
                 <span className={card.trend.color}>
                   {card.trend.icon === '↑' ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
                 </span>
                 <span className={`font-medium ${card.trend.color}`}>
                   {card.trend.value} ({card.trend.percent})
                 </span>
-                <span className="text-gray-500 text-[10px]">전월 대비</span>
+                <span className="text-gray-500 dark:text-gray-400 text-[10px]">전월 대비</span>
               </div>
             )}
           </Card>

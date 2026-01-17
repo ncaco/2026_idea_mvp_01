@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { authAPI, removeToken } from '@/lib/api';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Moon, Sun } from 'lucide-react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ username: string } | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     // 로그인 페이지에서는 사용자 정보를 가져오지 않음
@@ -64,16 +67,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: '/', label: '대시보드' },
     { href: '/transactions', label: '거래 내역' },
     { href: '/categories', label: '카테고리' },
+    { href: '/budgets', label: '예산 관리' },
+    { href: '/analytics', label: '패턴 분석' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-hidden">
-      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="w-full px-3 sm:px-4 lg:px-6">
           <div className="flex justify-between h-12 items-center">
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="flex-shrink-0">
-                <h1 className="text-base sm:text-lg font-bold text-gray-900">가계부</h1>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">가계부</h1>
               </div>
               <div className="hidden sm:flex sm:space-x-1">
                 {navItems.map((item) => (
@@ -82,8 +87,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
                       pathname === item.href
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
                   >
                     {item.label}
@@ -93,18 +98,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2">
               {currentUser && (
-                <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+                <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <span>{currentUser.username}</span>
                   <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun className="w-4 h-4" />
+                    ) : (
+                      <Moon className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
                     onClick={handleLogout}
-                    className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                    className="px-3 py-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                   >
                     로그아웃
                   </button>
                 </div>
               )}
               <button
-                className="sm:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+                className="sm:hidden p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="메뉴"
               >
@@ -142,8 +158,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     pathname === item.href
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
                   {item.label}

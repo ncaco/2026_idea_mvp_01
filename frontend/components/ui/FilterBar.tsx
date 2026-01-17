@@ -104,16 +104,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
       {categories.length > 0 && (
         <div>
-          <div className="text-xs font-medium text-gray-700 mb-2">카테고리 필터</div>
+          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">카테고리 필터</div>
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => handleCategoryToggle(category.id)}
-                className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                className={`px-3 py-1.5 text-xs rounded-md border transition-colors min-h-[28px] ${
                   selectedCategoryIds.includes(category.id)
-                    ? 'bg-blue-50 border-blue-300 text-blue-700'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 {category.color && (

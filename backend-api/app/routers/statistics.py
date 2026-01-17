@@ -89,3 +89,20 @@ def get_category_statistics(
         }
         for result in results
     ]
+
+
+@router.get("/predict-expense")
+def predict_expense(
+    months_back: int = Query(6, ge=2, le=12, description="예측에 사용할 과거 개월 수"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """다음 달 지출 예측"""
+    from app.services import prediction_service
+    
+    result = prediction_service.predict_next_month_expense(
+        db=db,
+        user_id=current_user.id,
+        months_back=months_back
+    )
+    return result

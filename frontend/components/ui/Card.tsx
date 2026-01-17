@@ -24,11 +24,11 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm ${paddingClass} ${interactiveClass} animate-fade-in ${className}`}
+      className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 ${paddingClass} ${interactiveClass} animate-fade-in ${className}`}
       onClick={onClick}
     >
       {title && (
-        <h3 className={`font-bold text-gray-900 ${compact ? 'text-lg mb-4' : 'text-xl mb-5'}`}>
+        <h3 className={`font-bold text-gray-900 dark:text-gray-100 ${compact ? 'text-lg mb-4' : 'text-xl mb-5'}`}>
           {title}
         </h3>
       )}

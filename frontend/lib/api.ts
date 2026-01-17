@@ -113,6 +113,40 @@ export interface AuthResponse {
   token_type: string;
 }
 
+export interface Budget {
+  id: number;
+  user_id: number;
+  category_id?: number;
+  amount: number;
+  month: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetCreate {
+  category_id?: number;
+  amount: number;
+  month: string;
+}
+
+export interface BudgetUpdate {
+  category_id?: number;
+  amount?: number;
+  month?: string;
+}
+
+export interface BudgetStatus {
+  budget_id: number;
+  budget_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  percentage: number;
+  is_over_budget: boolean;
+  category_id?: number;
+  category_name?: string;
+  month: string;
+}
+
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   console.log(`=== API 호출: ${endpoint} ===`);
@@ -204,11 +238,14 @@ export const transactionAPI = {
     end_date?: string;
     category_id?: number;
     type?: 'income' | 'expense';
+    search?: string;
+    min_amount?: number;
+    max_amount?: number;
   }) => {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
+        if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
         }
       });
@@ -330,6 +367,77 @@ export const transactionAPI = {
     
     return response.json();
   },
+
+  exportCsv: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    category_id?: number;
+    type?: 'income' | 'expense';
+  }) => {
+    const token = getToken();
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `${API_BASE_URL}/api/transactions/export/csv?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = '거래내역.csv';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+      if (filenameMatch) {
+        filename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  importCsv: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/transactions/import/csv`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
 };
 
 // Category API
@@ -431,6 +539,68 @@ export const categoryAPI = {
     
     return response.json();
   },
+
+  exportCsv: async (type?: 'income' | 'expense') => {
+    const token = getToken();
+    const queryParams = new URLSearchParams();
+    if (type) {
+      queryParams.append('type', type);
+    }
+    
+    const url = `${API_BASE_URL}/api/categories/export/csv?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = '카테고리.csv';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+      if (filenameMatch) {
+        filename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  importCsv: async (file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/categories/import/csv`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  },
 };
 
 // Statistics API
@@ -449,6 +619,24 @@ export const statisticsAPI = {
     if (month) queryParams.append('month', month.toString());
     queryParams.append('type', type);
     return fetchAPI<CategoryStatistics[]>(`/api/statistics/by-category?${queryParams.toString()}`);
+  },
+
+  predictExpense: (monthsBack?: number) => {
+    const queryParams = new URLSearchParams();
+    if (monthsBack) queryParams.append('months_back', monthsBack.toString());
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<{
+      predicted_total: number;
+      predicted_by_category: Array<{
+        category_id: number;
+        category_name: string;
+        color?: string;
+        predicted_amount: number;
+      }>;
+      method: string;
+      confidence: number;
+      based_on_months: number;
+    }>(`/api/statistics/predict-expense${query}`);
   },
 };
 
@@ -511,5 +699,191 @@ export const authAPI = {
 
   logout: (): void => {
     removeToken();
+  },
+};
+
+// Budget API
+export const budgetAPI = {
+  getAll: (params?: {
+    month?: string;
+    category_id?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<Budget[]>(`/api/budgets${query}`);
+  },
+
+  getById: (id: number) => fetchAPI<Budget>(`/api/budgets/${id}`),
+
+  create: (data: BudgetCreate) =>
+    fetchAPI<Budget>('/api/budgets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: BudgetUpdate) =>
+    fetchAPI<Budget>(`/api/budgets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchAPI<void>(`/api/budgets/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getStatus: (month: string) =>
+    fetchAPI<BudgetStatus[]>(`/api/budgets/status/${month}`),
+};
+
+// AI API
+export interface CategoryClassificationRequest {
+  description: string;
+  transaction_type?: 'income' | 'expense';
+}
+
+export interface CategoryClassificationResponse {
+  category_id?: number;
+  category_name?: string;
+  confidence: number;
+}
+
+export interface NaturalLanguageParseRequest {
+  text: string;
+}
+
+export interface NaturalLanguageParseResponse {
+  transaction_date?: string;
+  amount?: number;
+  category_id?: number;
+  category_name?: string;
+  description: string;
+  type: 'income' | 'expense';
+}
+
+export interface SpendingPatternsResponse {
+  monthly_pattern: Array<{
+    year: number;
+    month: number;
+    total: number;
+  }>;
+  weekday_pattern: Array<{
+    weekday: number;
+    weekday_name: string;
+    avg_amount: number;
+    count: number;
+  }>;
+  outliers: Array<{
+    id: number;
+    date: string;
+    amount: number;
+    description?: string;
+    category_id: number;
+  }>;
+  average_amount: number;
+  threshold: number;
+}
+
+export const aiAPI = {
+  classifyCategory: (data: CategoryClassificationRequest) =>
+    fetchAPI<CategoryClassificationResponse>('/api/ai/classify-category', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  parseNaturalLanguage: (data: NaturalLanguageParseRequest) =>
+    fetchAPI<NaturalLanguageParseResponse>('/api/ai/parse-natural-language', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getSpendingPatterns: (params?: {
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return fetchAPI<SpendingPatternsResponse>(`/api/ai/spending-patterns${query}`);
+  },
+};
+
+// Reports API
+export interface MonthlyReportResponse {
+  year: number;
+  month: number;
+  summary: {
+    income: number;
+    expense: number;
+    balance: number;
+    income_count: number;
+    expense_count: number;
+  };
+  category_breakdown: Array<{
+    category_id: number;
+    category_name: string;
+    color?: string;
+    type: 'income' | 'expense';
+    total: number;
+    count: number;
+  }>;
+  transactions: Array<{
+    id: number;
+    date: string;
+    type: 'income' | 'expense';
+    amount: number;
+    description?: string;
+    category_id: number;
+    category_name: string;
+  }>;
+  generated_at: string;
+}
+
+export const reportsAPI = {
+  getMonthlyReport: (year: number, month: number, format: 'json' | 'pdf' = 'json') => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('year', year.toString());
+    queryParams.append('month', month.toString());
+    queryParams.append('format', format);
+    
+    if (format === 'pdf') {
+      const token = getToken();
+      const url = `${API_BASE_URL}/api/reports/monthly?${queryParams.toString()}`;
+      return fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      }).then(async (response) => {
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+          throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `리포트_${year}_${month.toString().padStart(2, '0')}.${format === 'pdf' ? 'pdf' : 'json'}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      });
+    } else {
+      return fetchAPI<MonthlyReportResponse>(`/api/reports/monthly?${queryParams.toString()}`);
+    }
   },
 };

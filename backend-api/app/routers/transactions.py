@@ -7,6 +7,7 @@ from app.database import get_db
 from app.schemas.transaction import Transaction, TransactionCreate, TransactionUpdate
 from app.services import transaction_service
 from app.services.excel_service import export_transactions_to_excel, import_transactions_from_excel
+from app.services.csv_service import export_transactions_to_csv, import_transactions_from_csv
 from app.core.security import get_current_user
 from app.models import User, Category
 
@@ -31,10 +32,13 @@ def get_transactions(
     end_date: Optional[date] = Query(None),
     category_id: Optional[int] = Query(None),
     type: Optional[str] = Query(None, regex="^(income|expense)$"),
+    search: Optional[str] = Query(None, description="검색어 (설명 또는 카테고리명)"),
+    min_amount: Optional[float] = Query(None, ge=0, description="최소 금액"),
+    max_amount: Optional[float] = Query(None, ge=0, description="최대 금액"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """거래 내역 목록 조회"""
+    """거래 내역 목록 조회 (검색 및 필터링 지원)"""
     return transaction_service.get_transactions(
         db=db,
         user_id=current_user.id,
@@ -43,7 +47,10 @@ def get_transactions(
         start_date=start_date,
         end_date=end_date,
         category_id=category_id,
-        transaction_type=type
+        transaction_type=type,
+        search=search,
+        min_amount=min_amount,
+        max_amount=max_amount
     )
 
 
@@ -193,3 +200,88 @@ def delete_all_transactions(
         transaction_type=type
     )
     return {"message": f"{deleted_count}건의 거래 내역이 삭제되었습니다", "deleted_count": deleted_count}
+
+
+@router.get("/export/csv")
+def export_transactions_csv(
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    category_id: Optional[int] = Query(None),
+    type: Optional[str] = Query(None, regex="^(income|expense)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """거래 내역을 CSV 파일로 다운로드"""
+    # 거래 내역 조회
+    transactions = transaction_service.get_transactions(
+        db=db,
+        user_id=current_user.id,
+        skip=0,
+        limit=10000,
+        start_date=start_date,
+        end_date=end_date,
+        category_id=category_id,
+        transaction_type=type
+    )
+    
+    if not transactions:
+        raise HTTPException(status_code=404, detail="다운로드할 거래 내역이 없습니다")
+    
+    # 카테고리 정보 조회
+    category_ids = {t.category_id for t in transactions}
+    categories = db.query(Category).filter(
+        Category.id.in_(category_ids),
+        Category.user_id == current_user.id
+    ).all()
+    categories_dict = {c.id: c for c in categories}
+    
+    # CSV 파일 생성
+    csv_file = export_transactions_to_csv(db, transactions, categories_dict)
+    
+    # 파일명 생성
+    from datetime import datetime
+    from urllib.parse import quote
+    filename = f"거래내역_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename_encoded = quote(filename, safe='')
+    
+    return StreamingResponse(
+        csv_file,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
+        }
+    )
+
+
+@router.post("/import/csv")
+async def import_transactions_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """CSV 파일에서 거래 내역을 일괄 등록"""
+    # 파일 확장자 확인
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="CSV 파일(.csv)만 업로드 가능합니다")
+    
+    # 파일 읽기
+    file_content = await file.read()
+    
+    # 카테고리 정보 조회
+    categories = db.query(Category).filter(Category.user_id == current_user.id).all()
+    categories_dict = {c.name: c for c in categories}
+    
+    # CSV 파일 파싱 및 저장
+    result = import_transactions_from_csv(
+        db=db,
+        file_content=file_content,
+        user_id=current_user.id,
+        categories=categories_dict
+    )
+    
+    return {
+        "message": "CSV 파일 업로드가 완료되었습니다",
+        "success": result["success"],
+        "failed": result["failed"],
+        "errors": result["errors"][:10]
+    }

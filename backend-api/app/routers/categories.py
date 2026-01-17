@@ -8,6 +8,7 @@ from app.database import get_db
 from app.schemas.category import Category, CategoryCreate, CategoryUpdate
 from app.services import category_service
 from app.services.excel_service import export_categories_to_excel, import_categories_from_excel
+from app.services.csv_service import export_categories_to_csv, import_categories_from_csv
 from app.core.security import get_current_user
 from app.models import User
 
@@ -155,3 +156,65 @@ def delete_all_categories(
         category_type=type
     )
     return {"message": f"{deleted_count}개의 카테고리가 삭제되었습니다", "deleted_count": deleted_count}
+
+
+@router.get("/export/csv")
+def export_categories_csv(
+    type: Optional[str] = Query(None, regex="^(income|expense)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """카테고리를 CSV 파일로 다운로드"""
+    # 카테고리 조회
+    categories = category_service.get_categories(
+        db=db,
+        user_id=current_user.id,
+        category_type=type
+    )
+    
+    if not categories:
+        raise HTTPException(status_code=404, detail="다운로드할 카테고리가 없습니다")
+    
+    # CSV 파일 생성
+    csv_file = export_categories_to_csv(db, categories)
+    
+    # 파일명 생성
+    filename = f"카테고리_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename_encoded = quote(filename, safe='')
+    
+    return StreamingResponse(
+        csv_file,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename_encoded}"
+        }
+    )
+
+
+@router.post("/import/csv")
+async def import_categories_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """CSV 파일에서 카테고리를 일괄 등록"""
+    # 파일 확장자 확인
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="CSV 파일(.csv)만 업로드 가능합니다")
+    
+    # 파일 읽기
+    file_content = await file.read()
+    
+    # CSV 파일 파싱 및 저장
+    result = import_categories_from_csv(
+        db=db,
+        file_content=file_content,
+        user_id=current_user.id
+    )
+    
+    return {
+        "message": "CSV 파일 업로드가 완료되었습니다",
+        "success": result["success"],
+        "failed": result["failed"],
+        "errors": result["errors"][:10]
+    }

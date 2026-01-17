@@ -101,10 +101,10 @@ export const RecentTransactions: React.FC = () => {
           );
         })}
       </div>
-      <div className="mt-4 pt-4 border-t-2 border-gray-200">
+      <div className="mt-4 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
         <Link
           href="/transactions"
-          className="text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center justify-center gap-2 hover:gap-3 transition-all"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold flex items-center justify-center gap-2 hover:gap-3 transition-all"
         >
           전체 보기
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -192,6 +192,48 @@ export const CategoryList: React.FC = () => {
     }
   };
 
+  const handleExportCsv = async () => {
+    try {
+      const type = filterType !== 'all' ? filterType : undefined;
+      await categoryAPI.exportCsv(type);
+    } catch (error: any) {
+      console.error('CSV 다운로드 실패:', error);
+      alert(`CSV 다운로드 실패: ${error.message}`);
+    }
+  };
+
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.csv')) {
+      alert('CSV 파일(.csv)만 업로드 가능합니다.');
+      return;
+    }
+    
+    if (!confirm('CSV 파일을 업로드하시겠습니까? 기존 카테고리는 유지되고 새 카테고리가 추가됩니다.')) {
+      return;
+    }
+    
+    try {
+      const result = await categoryAPI.importCsv(file);
+      alert(
+        `업로드 완료!\n성공: ${result.success}건\n실패: ${result.failed}건${
+          result.errors && result.errors.length > 0
+            ? `\n\n오류:\n${result.errors.slice(0, 5).join('\n')}`
+            : ''
+        }`
+      );
+      await loadCategories();
+      // 파일 입력 초기화
+      event.target.value = '';
+    } catch (error: any) {
+      console.error('CSV 업로드 실패:', error);
+      alert(`CSV 업로드 실패: ${error.message}`);
+      event.target.value = '';
+    }
+  };
+
   const filteredCategories = categories.filter((category) => {
     if (searchValue) {
       return category.name.toLowerCase().includes(searchValue.toLowerCase());
@@ -206,18 +248,19 @@ export const CategoryList: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-1">카테고리 관리</h2>
-          <p className="text-sm text-gray-600">수입/지출 카테고리를 관리하고 통계를 확인하세요</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">카테고리 관리</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">수입/지출 카테고리를 관리하고 통계를 확인하세요</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <label htmlFor="category-excel-upload" className="cursor-pointer">
             <Button
               variant="secondary"
+              size="sm"
               as="span"
-              className="flex items-center justify-center p-2"
+              className="min-w-[40px]"
               title="엑셀 업로드"
             >
-              <Upload className="w-5 h-5" />
+              <Upload className="w-4 h-4" />
             </Button>
             <input
               id="category-excel-upload"
@@ -227,28 +270,57 @@ export const CategoryList: React.FC = () => {
               className="hidden"
             />
           </label>
+          <label htmlFor="category-csv-upload" className="cursor-pointer">
+            <Button
+              variant="secondary"
+              size="sm"
+              as="span"
+              className="min-w-[40px]"
+              title="CSV 업로드"
+            >
+              <Upload className="w-4 h-4" />
+            </Button>
+            <input
+              id="category-csv-upload"
+              type="file"
+              accept=".csv"
+              onChange={handleImportCsv}
+              className="hidden"
+            />
+          </label>
           <Button
             variant="secondary"
+            size="sm"
             onClick={handleExportExcel}
-            className="flex items-center justify-center p-2"
+            className="min-w-[40px]"
             title="엑셀 다운로드"
           >
-            <Download className="w-5 h-5" />
+            <Download className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportCsv}
+            className="min-w-[40px]"
+            title="CSV 다운로드"
+          >
+            <Download className="w-4 h-4" />
           </Button>
           <Button
             variant="danger"
+            size="sm"
             onClick={handleDeleteAll}
-            className="flex items-center justify-center p-2"
+            className="min-w-[40px]"
             title="전체 삭제"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
           </Button>
           <Button
+            size="md"
             onClick={() => {
               setEditingCategory(undefined);
               setShowForm(true);
             }}
-            className="flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             카테고리 추가
@@ -262,7 +334,7 @@ export const CategoryList: React.FC = () => {
             variant={filterType === 'all' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('all')}
-            className="font-medium"
+            className="min-w-[60px]"
           >
             전체
           </Button>
@@ -270,7 +342,7 @@ export const CategoryList: React.FC = () => {
             variant={filterType === 'income' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('income')}
-            className="font-medium"
+            className="min-w-[60px]"
           >
             수입
           </Button>
@@ -278,7 +350,7 @@ export const CategoryList: React.FC = () => {
             variant={filterType === 'expense' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilterType('expense')}
-            className="font-medium"
+            className="min-w-[60px]"
           >
             지출
           </Button>
@@ -304,7 +376,7 @@ export const CategoryList: React.FC = () => {
         <>
           {incomeCategories.length > 0 && (
             <div>
-              <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <h3 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
                 <span className="w-1 h-5 bg-green-500 rounded-full"></span>
                 수입 카테고리
               </h3>
@@ -313,7 +385,7 @@ export const CategoryList: React.FC = () => {
                   <Card
                     key={category.id}
                     compact
-                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 hover:border-green-300 hover:scale-105"
+                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:scale-105"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -323,27 +395,27 @@ export const CategoryList: React.FC = () => {
                             style={{ backgroundColor: category.color }}
                           />
                         )}
-                        <span className="font-bold text-sm truncate">{category.name}</span>
+                        <span className="font-bold text-sm truncate dark:text-gray-100">{category.name}</span>
                       </div>
                     </div>
-                    <div className="space-y-1.5 mb-3 bg-white/50 rounded-lg p-2">
+                    <div className="space-y-1.5 mb-3 bg-white/50 dark:bg-gray-800/50 rounded-lg p-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-medium">거래 수</span>
-                        <span className="font-bold text-gray-900">{category.transactionCount || 0}건</span>
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">거래 수</span>
+                        <span className="font-bold text-gray-900 dark:text-gray-100">{category.transactionCount || 0}건</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-medium">총액</span>
-                        <span className="font-bold text-green-600">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">총액</span>
+                        <span className="font-bold text-green-600 dark:text-green-400">
                           ₩{Number(category.totalAmount || 0).toLocaleString('ko-KR')}
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200">
+                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200 dark:border-gray-700">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleEdit(category)}
-                        className="flex-1 text-xs font-medium"
+                        className="flex-1 min-w-[70px]"
                       >
                         수정
                       </Button>
@@ -351,7 +423,7 @@ export const CategoryList: React.FC = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDelete(category.id)}
-                        className="flex-1 text-xs font-medium"
+                        className="flex-1 min-w-[70px]"
                       >
                         삭제
                       </Button>
@@ -364,7 +436,7 @@ export const CategoryList: React.FC = () => {
 
           {expenseCategories.length > 0 && (
             <div>
-              <h3 className="text-base font-bold text-gray-800 mb-3 mt-6 flex items-center gap-2">
+              <h3 className="text-base font-bold text-gray-800 dark:text-gray-200 mb-3 mt-6 flex items-center gap-2">
                 <span className="w-1 h-5 bg-red-500 rounded-full"></span>
                 지출 카테고리
               </h3>
@@ -373,7 +445,7 @@ export const CategoryList: React.FC = () => {
                   <Card
                     key={category.id}
                     compact
-                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 hover:border-red-300 hover:scale-105"
+                    className="interactive hover:shadow-xl transition-all duration-300 border-2 border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-600 hover:scale-105"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -383,25 +455,25 @@ export const CategoryList: React.FC = () => {
                             style={{ backgroundColor: category.color }}
                           />
                         )}
-                        <span className="font-bold text-sm truncate">{category.name}</span>
+                        <span className="font-bold text-sm truncate dark:text-gray-100">{category.name}</span>
                       </div>
                     </div>
                     <div className="space-y-1 mb-3">
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
                         거래 수: <span className="font-medium">{category.transactionCount || 0}건</span>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        총액: <span className="font-medium text-red-600">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        총액: <span className="font-medium text-red-600 dark:text-red-400">
                           ₩{Number(category.totalAmount || 0).toLocaleString('ko-KR')}
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200">
+                    <div className="flex gap-2 pt-3 border-t-2 border-gray-200 dark:border-gray-700">
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleEdit(category)}
-                        className="flex-1 text-xs font-medium"
+                        className="flex-1 min-w-[70px]"
                       >
                         수정
                       </Button>
@@ -409,7 +481,7 @@ export const CategoryList: React.FC = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDelete(category.id)}
-                        className="flex-1 text-xs font-medium"
+                        className="flex-1 min-w-[70px]"
                       >
                         삭제
                       </Button>

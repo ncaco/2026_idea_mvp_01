@@ -94,11 +94,11 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="secondary" onClick={onCancel}>
+      <div className="flex gap-2 justify-end pt-2">
+        <Button type="button" variant="secondary" size="md" onClick={onCancel} className="min-w-[80px]">
           취소
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" size="md" disabled={loading} className="min-w-[80px]">
           {loading ? '저장 중...' : category ? '수정' : '등록'}
         </Button>
       </div>
